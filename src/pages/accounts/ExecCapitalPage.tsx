@@ -491,9 +491,6 @@ export default function ExecCapitalPage() {
   return (
     <div>
       <div style={{ marginBottom:22 }}>
-        <button onClick={()=>{ const acct=ACCOUNTS_LIST.find(a=>a.name===filterAccount); nav(filterAccount!=='All'&&acct?`/accounts/${acct.id}`:'/accounts') }} style={{ display:'inline-flex',alignItems:'center',gap:6,fontSize:13,fontWeight:600,color:'var(--text-3)',background:'none',border:'none',cursor:'pointer',padding:'0 0 10px 0',fontFamily:'Source Sans 3,sans-serif' }}>
-          ← {filterAccount!=='All'?`Back to ${filterAccount}`:'Back to Accounts'}
-        </button>
         <div style={{ fontSize:10.5,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--text-3)',marginBottom:4 }}>ACCOUNTS</div>
         <h1 style={{ fontFamily:'Playfair Display,serif',fontSize:28,color:'var(--navy)',margin:0 }}>Exec Capital</h1>
       </div>
