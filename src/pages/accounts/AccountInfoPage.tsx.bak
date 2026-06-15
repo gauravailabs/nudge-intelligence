@@ -1,0 +1,1224 @@
+import { useState, useEffect, createContext, useContext } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { X, ArrowRight, ChevronDown, ChevronRight, ArrowLeft, Zap, CheckCircle2 } from 'lucide-react'
+import { ACCOUNT_INFO, ACCOUNTS_LIST, NEWS_INTERNAL, NEWS_EXTERNAL_REVANCE, NEWS_EXTERNAL_TAKEDA, NUDGE_PROFILE } from '../../data'
+import { localGet } from '../../lib/supabase'
+
+const NAV_SECTIONS = [
+  { id:'nudge',          label:'Nudge Intelligence' },
+  { id:'one-min',        label:'One Minute Summary' },
+  { id:'org-leadership', label:'Key Stakeholders'   },
+  { id:'financial',      label:'Financial Snapshot' },
+  { id:'revenue-target', label:'Revenue Target'     },
+  { id:'strategic',      label:'Strategic Priorities'},
+  { id:'right-to-win',   label:'Right to Win'       },
+  { id:'next-action',    label:'Next Best Action'   },
+  { id:'90day-plan',     label:'90-Day Action Plan' },
+  { id:'big-bets',       label:'Big Bets'           },
+  { id:'pipeline',       label:'Pipeline Insights'  },
+  { id:'investment',     label:'Investment Strategy'},
+  { id:'play-areas',     label:'Play Areas'         },
+  { id:'freyr-play',     label:'Freyr Opportunities'},
+  { id:'swot',           label:'SWOT Analysis'      },
+  { id:'news',           label:'News Intelligence'  },
+  { id:'notes',          label:'Notes & Download'   },
+]
+
+const Ctx = createContext<string>('nudge')
+
+function Slide({ id, children }: { id:string; children:React.ReactNode }) {
+  const a = useContext(Ctx)
+  if (a !== id) return null
+  return <section style={{ animation:'pageIn 220ms ease both' }}>{children}</section>
+}
+
+// ─── HIGHLIGHTED SIGNAL CARD ─────────────────────────────────────────────────
+function NudgeSignalCard({ text }: { text:string }) {
+  return (
+    <div style={{ background:'linear-gradient(135deg,#1B365D 0%,#244878 100%)', border:'1px solid rgba(212,175,55,0.35)', borderLeft:'5px solid #D4AF37', borderRadius:12, padding:'18px 22px', marginBottom:16, boxShadow:'0 4px 20px rgba(27,54,93,0.3)' }}>
+      <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
+        <Zap size={18} style={{ color:'#D4AF37', flexShrink:0, marginTop:2 }}/>
+        <div>
+          <div style={{ fontSize:10, fontWeight:700, color:'rgba(212,175,55,0.9)', letterSpacing:'0.16em', textTransform:'uppercase', marginBottom:7, fontFamily:'Source Sans 3,sans-serif' }}>NUDGE INTELLIGENCE SIGNAL</div>
+          <p style={{ fontSize:14.5, color:'rgba(255,255,255,0.92)', lineHeight:1.8, margin:0 }}>{text}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── HIGHLIGHTED FREYR IMPLICATION CARD ──────────────────────────────────────
+function FreyrCard({ text }: { text:string }) {
+  return (
+    <div style={{ background:'linear-gradient(135deg,rgba(212,175,55,0.14) 0%,rgba(212,175,55,0.06) 100%)', border:'1.5px solid rgba(212,175,55,0.45)', borderLeft:'5px solid #D4AF37', borderRadius:12, padding:'16px 20px', marginBottom:20, boxShadow:'0 2px 12px rgba(212,175,55,0.12)' }}>
+      <div style={{ fontSize:10, fontWeight:700, color:'#b89428', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:7 }}>WHAT THIS MEANS FOR FREYR</div>
+      <p style={{ fontSize:14, color:'#7a5c00', lineHeight:1.75, margin:0, fontWeight:500 }}>{text}</p>
+    </div>
+  )
+}
+
+function SecHeader({ title, sub, accent }: { title:string; sub?:string; accent?:string }) {
+  return (
+    <div style={{ display:'flex', alignItems:'flex-start', gap:14, marginBottom:24 }}>
+      <div style={{ width:4, minHeight:44, borderRadius:2, background:accent||'var(--gold)', flexShrink:0, marginTop:2 }}/>
+      <div>
+        <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, color:'var(--navy)', letterSpacing:'-0.02em', lineHeight:1.15, margin:'0 0 5px' }}>{title}</h2>
+        {sub && <p style={{ fontSize:14.5, color:'var(--text-3)', lineHeight:1.6, margin:0 }}>{sub}</p>}
+      </div>
+    </div>
+  )
+}
+
+// ─── EXPANDABLE INSIGHT CARD ──────────────────────────────────────────────────
+function InsightCard({ index, title, body, bullets, badge, badgeColor, extra, numbered=true, accent='var(--navy)' }:
+  { index:number; title:string; body?:string; bullets?:string[]; badge?:string; badgeColor?:string; extra?:React.ReactNode; numbered?:boolean; accent?:string }) {
+  const [open, setOpen] = useState(false)
+  const has = !!(body||(bullets&&bullets.length>0)||extra)
+  const bc = badgeColor||accent
+  return (
+    <div onClick={()=>has&&setOpen(o=>!o)} style={{ border:'1px solid var(--border)', borderLeft:`4px solid ${accent}`, borderRadius:'0 12px 12px 0', background:'var(--bg-surface)', boxShadow:open?'0 4px 20px rgba(27,54,93,0.1)':'var(--glow-card)', cursor:has?'pointer':'default', transition:'box-shadow 200ms', marginBottom:10, overflow:'hidden' }}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'14px 18px' }}>
+        {numbered && <div style={{ width:28, height:28, borderRadius:7, background:`${accent}14`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:accent, flexShrink:0, border:`1px solid ${accent}22`, fontFamily:'Playfair Display,serif' }}>{index+1}</div>}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'flex-start', gap:8, justifyContent:'space-between' }}>
+            <p style={{ fontSize:14.5, color:'var(--navy)', lineHeight:1.5, margin:0, fontWeight:600, flex:1 }}>{title}</p>
+            <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+              {badge && <span style={{ padding:'2px 9px', borderRadius:20, fontSize:10.5, fontWeight:700, background:`${bc}15`, color:bc, border:`1px solid ${bc}33`, whiteSpace:'nowrap' }}>{badge}</span>}
+              {has && <ChevronDown size={14} style={{ color:'var(--text-3)', transform:open?'rotate(180deg)':'none', transition:'transform 200ms' }}/>}
+            </div>
+          </div>
+        </div>
+      </div>
+      {open && has && (
+        <div style={{ padding:'0 18px 18px', borderTop:'1px solid var(--border)', paddingTop:14, animation:'slideDown 200ms ease' }}>
+          {body && <p style={{ fontSize:14, color:'var(--text-2)', lineHeight:1.8, margin:'0 0 12px' }}>{body}</p>}
+          {bullets && bullets.length>0 && (
+            <ul style={{ margin:0, padding:0, listStyle:'none', display:'flex', flexDirection:'column', gap:7 }}>
+              {bullets.map((b,i) => (
+                <li key={i} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                  <span style={{ width:6, height:6, borderRadius:'50%', background:accent, flexShrink:0, marginTop:7 }}/>
+                  <span style={{ fontSize:13.5, color:'var(--text-2)', lineHeight:1.7 }}>{b}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {extra && <div style={{ marginTop:(body||bullets)?14:0 }}>{extra}</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── BIG BET CARD ────────────────────────────────────────────────────────────
+function BigBetCard({ bet, index, accent }: { bet:any; index:number; accent:string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div onClick={()=>setOpen(o=>!o)} style={{ border:'1px solid var(--border)', borderLeft:`5px solid ${accent}`, borderRadius:'0 16px 16px 0', background:'var(--bg-surface)', boxShadow:open?'0 6px 24px rgba(27,54,93,0.12)':'var(--glow-card)', cursor:'pointer', transition:'box-shadow 200ms', marginBottom:14, overflow:'hidden' }}>
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, padding:'20px 24px' }}>
+        <div style={{ flex:1 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
+            <div style={{ width:30, height:30, borderRadius:8, background:`${accent}14`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:800, color:accent, fontFamily:'Sora,sans-serif', flexShrink:0 }}>{index+1}</div>
+            <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, color:'var(--navy)', lineHeight:1.2 }}>{bet.title}</div>
+          </div>
+          {bet.tag && <span style={{ padding:'2px 10px', borderRadius:20, fontSize:10.5, fontWeight:700, background:`${accent}12`, color:accent, border:`1px solid ${accent}30`, marginLeft:40 }}>{bet.tag}</span>}
+        </div>
+        <ChevronDown size={18} style={{ color:'var(--text-3)', flexShrink:0, marginTop:6, transform:open?'rotate(180deg)':'none', transition:'transform 200ms' }}/>
+      </div>
+      {open && (
+        <div style={{ padding:'0 24px 22px', borderTop:'1px solid var(--border)', paddingTop:18, animation:'slideDown 200ms ease' }}>
+          {bet.body && <p style={{ fontSize:14.5, color:'var(--text-2)', lineHeight:1.85, margin:'0 0 16px' }}>{bet.body}</p>}
+          {bet.bullets && bet.bullets.length>0 && (
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>KEY FACTS</div>
+              <ul style={{ margin:0, padding:0, listStyle:'none', display:'flex', flexDirection:'column', gap:7 }}>
+                {bet.bullets.map((b:string,i:number) => (
+                  <li key={i} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                    <span style={{ width:7, height:7, borderRadius:'50%', background:accent, flexShrink:0, marginTop:7 }}/>
+                    <span style={{ fontSize:13.5, color:'var(--text-2)', lineHeight:1.7 }}>{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {(bet.freyrResponse||bet.timeline) && (
+            <div style={{ display:'grid', gridTemplateColumns:bet.freyrResponse&&bet.timeline?'1fr 140px':'1fr', gap:12, marginTop:14 }}>
+              {bet.freyrResponse && (
+                <div style={{ padding:'12px 16px', background:'var(--navy-faint)', borderRadius:10, border:'1px solid rgba(27,54,93,0.15)' }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:'var(--navy)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>FREYR RESPONSE</div>
+                  <div style={{ fontSize:13, color:'var(--navy)', fontWeight:600, lineHeight:1.5 }}>{bet.freyrResponse}</div>
+                </div>
+              )}
+              {bet.timeline && (
+                <div style={{ padding:'12px 16px', background:'rgba(212,175,55,0.08)', borderRadius:10, border:'1px solid rgba(212,175,55,0.25)', textAlign:'center' }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:'#b89428', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>TIMELINE</div>
+                  <div style={{ fontSize:14, color:'#8c6e00', fontWeight:700 }}>{bet.timeline}</div>
+                </div>
+              )}
+            </div>
+          )}
+          {bet.nudgeSignal && (
+            <div style={{ marginTop:14, padding:'12px 16px', background:'linear-gradient(135deg,rgba(27,54,93,0.08),transparent)', border:'1px solid rgba(27,54,93,0.15)', borderRadius:10, display:'flex', gap:8 }}>
+              <Zap size={14} style={{ color:'#D4AF37', flexShrink:0, marginTop:2 }}/>
+              <p style={{ fontSize:13, color:'var(--navy)', lineHeight:1.6, margin:0, fontStyle:'italic' }}>{bet.nudgeSignal}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── STRATEGIC PRIORITY CARD ─────────────────────────────────────────────────
+function StratCard({ item, index }: { item:any; index:number }) {
+  const [open, setOpen] = useState(false)
+  const PC: Record<string,any> = {
+    'MOST URGENT':{ bg:'rgba(220,38,38,0.08)', c:'#dc2626', b:'rgba(220,38,38,0.25)', a:'#dc2626' },
+    'URGENT':     { bg:'rgba(234,88,12,0.08)', c:'#ea580c', b:'rgba(234,88,12,0.25)', a:'#ea580c' },
+    'HIGH':       { bg:'rgba(217,119,6,0.08)', c:'#d97706', b:'rgba(217,119,6,0.25)', a:'#d97706' },
+    'MEDIUM':     { bg:'rgba(27,54,93,0.08)',  c:'#1B365D', b:'rgba(27,54,93,0.2)',   a:'var(--navy)' },
+    'ACTIVE':     { bg:'rgba(16,185,129,0.08)',c:'#10b981', b:'rgba(16,185,129,0.25)',a:'#10b981' },
+  }
+  const pc = PC[item.priority]||PC['MEDIUM']
+  return (
+    <div onClick={()=>setOpen(o=>!o)} style={{ border:'1px solid var(--border)', borderLeft:`4px solid ${pc.a}`, borderRadius:'0 12px 12px 0', background:'var(--bg-surface)', cursor:'pointer', marginBottom:10, boxShadow:open?'0 4px 16px rgba(27,54,93,0.1)':'var(--glow-card)', overflow:'hidden' }}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'14px 18px' }}>
+        <div style={{ width:28, height:28, borderRadius:7, background:`${pc.a}14`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:pc.a, flexShrink:0, border:`1px solid ${pc.a}22` }}>{index+1}</div>
+        <div style={{ flex:1 }}>
+          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10 }}>
+            <p style={{ fontSize:14.5, color:'var(--navy)', fontWeight:600, lineHeight:1.5, margin:0 }}>{item.title}</p>
+            <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+              <span style={{ padding:'2px 9px', borderRadius:20, fontSize:10.5, fontWeight:700, background:pc.bg, color:pc.c, border:`1px solid ${pc.b}` }}>{item.priority}</span>
+              <ChevronDown size={14} style={{ color:'var(--text-3)', transform:open?'rotate(180deg)':'none', transition:'transform 200ms' }}/>
+            </div>
+          </div>
+        </div>
+      </div>
+      {open && (
+        <div style={{ padding:'0 18px 18px', borderTop:'1px solid var(--border)', paddingTop:14, animation:'slideDown 200ms ease' }}>
+          {item.body && <p style={{ fontSize:14, color:'var(--text-2)', lineHeight:1.8, margin:'0 0 12px' }}>{item.body}</p>}
+          {item.freyrAction && (
+            <div style={{ padding:'12px 16px', background:'var(--navy-faint)', borderRadius:9, border:'1px solid rgba(27,54,93,0.15)', marginBottom:10 }}>
+              <div style={{ fontSize:10, fontWeight:700, color:'var(--navy)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>FREYR ACTION</div>
+              <p style={{ fontSize:13.5, color:'var(--navy)', lineHeight:1.65, margin:0, fontWeight:500 }}>{item.freyrAction}</p>
+            </div>
+          )}
+          {(item.nudgeSignal||item.whatThisMeansForFreyr) && (
+            <div style={{ display:'grid', gridTemplateColumns:item.nudgeSignal&&item.whatThisMeansForFreyr?'1fr 1fr':'1fr', gap:10 }}>
+              {item.nudgeSignal && (
+                <div style={{ padding:'12px 16px', background:'rgba(27,54,93,0.05)', border:'1px solid rgba(27,54,93,0.12)', borderRadius:9, display:'flex', gap:8 }}>
+                  <Zap size={13} style={{ color:'#D4AF37', flexShrink:0, marginTop:2 }}/>
+                  <p style={{ fontSize:12.5, color:'var(--navy)', lineHeight:1.6, margin:0, fontStyle:'italic' }}>{item.nudgeSignal}</p>
+                </div>
+              )}
+              {item.whatThisMeansForFreyr && (
+                <div style={{ padding:'12px 16px', background:'rgba(212,175,55,0.07)', border:'1px solid rgba(212,175,55,0.2)', borderRadius:9 }}>
+                  <div style={{ fontSize:9.5, fontWeight:700, color:'#b89428', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>WHAT THIS MEANS FOR FREYR</div>
+                  <p style={{ fontSize:12.5, color:'#7a5c00', lineHeight:1.6, margin:0 }}>{item.whatThisMeansForFreyr}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── NEXT BEST ACTION CARD ───────────────────────────────────────────────────
+function NBACard({ item, index }: { item:any; index:number }) {
+  const [open, setOpen] = useState(false)
+  const UC: Record<string,string> = { 'Immediate':'#dc2626','Q3 2026':'#d97706','Q3-Q4 2026':'#d97706','Q4 2026':'var(--navy)' }
+  const uc = UC[item.urgency]||'var(--navy)'
+  return (
+    <div onClick={()=>setOpen(o=>!o)} style={{ border:'1px solid var(--border)', borderLeft:`4px solid ${uc}`, borderRadius:'0 12px 12px 0', background:'var(--bg-surface)', cursor:'pointer', marginBottom:10, boxShadow:open?'0 4px 16px rgba(27,54,93,0.1)':'var(--glow-card)', overflow:'hidden' }}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'14px 18px' }}>
+        <div style={{ width:28, height:28, borderRadius:7, background:`${uc}14`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:uc, flexShrink:0, border:`1px solid ${uc}22`, fontFamily:'Playfair Display,serif' }}>{index+1}</div>
+        <div style={{ flex:1 }}>
+          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10 }}>
+            <p style={{ fontSize:14.5, color:'var(--navy)', fontWeight:600, lineHeight:1.5, margin:0 }}>{item.action}</p>
+            <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+              <span style={{ padding:'2px 10px', borderRadius:5, fontSize:11, fontWeight:700, background:'var(--navy-faint)', color:'var(--navy)', whiteSpace:'nowrap' }}>{item.priority}</span>
+              <ChevronDown size={14} style={{ color:'var(--text-3)', transform:open?'rotate(180deg)':'none', transition:'transform 200ms' }}/>
+            </div>
+          </div>
+        </div>
+      </div>
+      {open && (
+        <div style={{ padding:'0 18px 18px', borderTop:'1px solid var(--border)', paddingTop:14, animation:'slideDown 200ms ease' }}>
+          <p style={{ fontSize:14, color:'var(--text-2)', lineHeight:1.8, margin:'0 0 12px' }}>{item.detail}</p>
+          <div style={{ display:'flex', gap:10 }}>
+            {item.owner && (
+              <div style={{ padding:'8px 14px', background:'var(--navy-faint)', borderRadius:8, flex:1 }}>
+                <div style={{ fontSize:10, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:3 }}>OWNER</div>
+                <div style={{ fontSize:13, color:'var(--navy)', fontWeight:600 }}>{item.owner}</div>
+              </div>
+            )}
+            <div style={{ padding:'8px 14px', background:`${uc}0d`, borderRadius:8, border:`1px solid ${uc}25`, minWidth:100, textAlign:'center' }}>
+              <div style={{ fontSize:10, fontWeight:700, color:uc, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:3 }}>URGENCY</div>
+              <div style={{ fontSize:13, color:uc, fontWeight:700 }}>{item.urgency}</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── PERSON CARD ─────────────────────────────────────────────────────────────
+function PersonCard({ person }: { person:any }) {
+  const [open, setOpen] = useState(false)
+  const RM: Record<string,{c:string;bg:string;label:string}> = {
+    cold:  { c:'#1B365D', bg:'rgba(27,54,93,0.08)',    label:'Cold'   },
+    warm:  { c:'#b89428', bg:'rgba(212,175,55,0.12)',  label:'Warm'   },
+    hot:   { c:'#dc2626', bg:'rgba(220,38,38,0.1)',    label:'Hot'    },
+    active:{ c:'#10b981', bg:'rgba(16,185,129,0.1)',   label:'Active' },
+  }
+  const rel = RM[(person.relationship||'cold').toLowerCase()] || RM.cold
+  const initials = (person.name||'').split(' ').map((n:string)=>n[0]).join('').slice(0,2)
+  const AVC = ['#1B365D','#7c3aed','#0891b2','#b89428','#dc2626','#059669']
+  const avc = AVC[Math.abs((person.name||'').charCodeAt(0)-65||0) % AVC.length]
+
+  return (
+    <div style={{
+      border: '1px solid var(--border)',
+      borderLeft: `3px solid ${rel.c}`,
+      borderRadius: '0 10px 10px 0',
+      background: 'var(--bg-surface)',
+      marginBottom: 8,
+      overflow: 'hidden',
+    }}>
+      {/* Collapsed header — always visible, click to toggle */}
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ display:'flex', alignItems:'center', gap:14, padding:'12px 16px', cursor:'pointer' }}
+      >
+        {/* Avatar */}
+        <div style={{
+          width:38, height:38, borderRadius:10, background:avc, flexShrink:0,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontSize:13, fontWeight:700, color:'#fff', letterSpacing:'0.03em'
+        }}>{initials}</div>
+
+        {/* Name + role */}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:14, fontWeight:700, color:'var(--navy)', lineHeight:1.2, marginBottom:2 }}>{person.name}</div>
+          <div style={{ fontSize:12, color:'var(--text-3)', lineHeight:1.3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{person.role||person.title}</div>
+        </div>
+
+        {/* Relationship badge */}
+        <span style={{
+          display:'inline-flex', alignItems:'center', gap:4,
+          padding:'3px 10px', borderRadius:20,
+          background:rel.bg, color:rel.c,
+          fontSize:10.5, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase',
+          flexShrink:0,
+        }}>
+          <span style={{ width:5, height:5, borderRadius:'50%', background:rel.c, display:'inline-block' }}/>
+          {rel.label}
+        </span>
+
+        {/* Chevron */}
+        <ChevronDown size={14} style={{
+          color:'var(--text-3)', flexShrink:0,
+          transform: open ? 'rotate(180deg)' : 'none',
+          transition:'transform 200ms'
+        }}/>
+      </div>
+
+      {/* Expanded detail */}
+      {open && (
+        <div style={{ padding:'0 16px 16px', borderTop:'1px solid var(--border)', paddingTop:14, animation:'slideDown 200ms ease' }}>
+          {/* Insight */}
+          {person.insight && (
+            <p style={{ fontSize:13.5, color:'var(--text-2)', lineHeight:1.7, margin:'0 0 14px' }}>{person.insight}</p>
+          )}
+
+          {/* Dos + Don'ts */}
+          {person.dos && person.donts && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
+              <div style={{ background:'rgba(16,185,129,0.07)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:8, padding:'10px 12px' }}>
+                <div style={{ fontSize:10, fontWeight:700, color:'#10b981', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:7 }}>✓ Do</div>
+                {person.dos.map((d:string,i:number) => (
+                  <div key={i} style={{ fontSize:12.5, color:'var(--text-2)', lineHeight:1.6, marginBottom:5, display:'flex', gap:6 }}>
+                    <span style={{ color:'#10b981', flexShrink:0, marginTop:1 }}>•</span><span>{d}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ background:'rgba(220,38,38,0.05)', border:'1px solid rgba(220,38,38,0.15)', borderRadius:8, padding:'10px 12px' }}>
+                <div style={{ fontSize:10, fontWeight:700, color:'#dc2626', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:7 }}>✕ Don't</div>
+                {person.donts.map((d:string,i:number) => (
+                  <div key={i} style={{ fontSize:12.5, color:'var(--text-2)', lineHeight:1.6, marginBottom:5, display:'flex', gap:6 }}>
+                    <span style={{ color:'#dc2626', flexShrink:0, marginTop:1 }}>•</span><span>{d}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Conference */}
+          {person.conference && (
+            <div style={{ fontSize:12.5, color:'var(--navy)', fontWeight:600, padding:'6px 10px', background:'var(--navy-faint)', borderRadius:6, marginBottom:10, display:'flex', gap:6, alignItems:'center' }}>
+              <span>🎤</span><span>{person.conference}</span>
+            </div>
+          )}
+
+          {/* Signals */}
+          {person.signals && person.signals.length > 0 && (
+            <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom: person.sellingPoint ? 10 : 0 }}>
+              {person.signals.map((s:string) => (
+                <span key={s} style={{ padding:'2px 8px', borderRadius:20, fontSize:10.5, fontWeight:600, background:'rgba(27,54,93,0.07)', color:'var(--navy)', border:'1px solid rgba(27,54,93,0.12)' }}>⚡ {s}</span>
+              ))}
+            </div>
+          )}
+
+          {/* Selling point */}
+          {person.sellingPoint && (
+            <div style={{ padding:'10px 14px', background:'rgba(212,175,55,0.07)', border:'1px solid rgba(212,175,55,0.3)', borderRadius:8 }}>
+              <div style={{ fontSize:9.5, fontWeight:700, color:'#b89428', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4 }}>Freyr Selling Point</div>
+              <p style={{ fontSize:13, color:'#7a5c00', lineHeight:1.6, margin:0, fontWeight:500 }}>{person.sellingPoint}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── SALES INTELLIGENCE SECTION (3 structured components) ────────────────────
+function SalesIntel({ accountId }: { accountId:string }) {
+  const isR = accountId==='revance'
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:28 }}>
+      {/* 1: Signal Combination Matrix */}
+      <div>
+        <div style={{ fontSize:16, fontWeight:700, color:'var(--navy)', fontFamily:'Playfair Display,serif', marginBottom:14, borderBottom:'2px solid var(--border)', paddingBottom:10 }}>1 — Signal Combination Matrix</div>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13.5 }}>
+            <thead><tr style={{ background:'var(--navy)', color:'#fff' }}>
+              {['HYPOTHESIS','SIGNAL 1','SIGNAL 2','SIGNAL 3','RECOMMENDED ACTION','PRIORITY'].map(h=>(
+                <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:700, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {(isR ? [
+                { h:'DAXXIFY EU Gap + Active PV + No Freyr Presence = Act Now', s1:'EU Reg. Gap (4+ yrs)', s2:'Active PV since May 2024', s3:'No Freyr in Either Programme', a:'Initiate Head of RA contact this week — EU scoping + PV question simultaneously. No incumbent.', p:'CRITICAL' },
+                { h:'Crown PE Acquisition Changes All Vendor Decisions', s1:'Crown PE Governance', s2:'H2 2026 Contract Review', s3:'New C-Suite (Oct 2025)', a:'Move to Full-Service before H2 2026 vendor review locks roster — prepare consolidated proposal with ROI model for Leffler.', p:'CRITICAL' },
+                { h:'Hitchcock + NMPA + Phase II = Technology Track Entry', s1:'Fosun NMPA Programme', s2:'Phase II Spasticity', s3:'VIA No Competitor', a:'Approach Hitchcock with VIA NMPA case study and multi-indication complexity — scientific peer conversation.', p:'HIGH' },
+                { h:'Technology White Space Before Crown CRO Panel Decision', s1:'Tech White Space', s2:'ICON/Parexel Crown Rel.', s3:'freya.intelligence Ready', a:'Propose freya.intelligence 60-day POC via RA team — no CEO sign-off required. Act Q3 2026.', p:'HIGH' },
+                { h:'Crown Integration = Freyr Expansion or Displacement', s1:'Vendor Rationalisation', s2:'Single-Service Vulnerable', s3:'Full-Service Opportunity', a:'Expand to PV + MLR + technology before review. Multi-service = displacement-proof.', p:'HIGH' },
+              ] : [
+                { h:'Leverage CEO Succession and Transformation to Accelerate Launch Support', s1:'CEO Succession', s2:'Transformation Program', s3:'Launch Pipeline', a:'Initiate executive outreach to Julie Kim and Lauren Duprey to position Freyr as strategic partner for launch readiness and transformation efficiency.', p:'Critical' },
+                { h:'Combine U.S. Market Pressure and Market Access Expansion to Drive Commercial Solutions', s1:'Vyvanse LOE', s2:'U.S. Revenue Share', s3:'Market Access Expansion', a:'Offer payer analytics and digital content management to U.S. commercial teams to mitigate revenue loss and enhance launch uptake.', p:'High' },
+                { h:'Align AI ROI Pressure with Cloud Migration to Propose Digital Transformation Pilots', s1:'AI ROI Focus', s2:'Cloud Migration', s3:'Digital Partnerships', a:"Collaborate with Ricci (CDTO) to co-develop AI-ready data platform — freya fusion multi-LLM maps to his multi-model orchestration philosophy.", p:'High' },
+                { h:'Use Procurement Centralization and Vendor Governance to Address Restructuring Compliance', s1:'Procurement Centralization', s2:'SAP Ariba', s3:'Transformation Program', a:'Propose SAP Ariba-integrated vendor governance. Establish freya fusion API compatibility before Accenture extends scope.', p:'Medium' },
+                { h:'Combine Medical Content Hiring and GenAI Interest to Offer Content Automation Solutions', s1:'Medical Content Hiring', s2:'Vendor Excellence', s3:'GenAI Content Ops', a:'Pilot GenAI-powered medical content automation with medical affairs reducing cycle times and compliance risk.', p:'Medium' },
+                { h:'Leverage Leadership Transition and Board Refresh to Secure Multi-Year Partnership', s1:'CEO Succession', s2:'Board Refresh', s3:'Org Restructure', a:"Develop transition-safe engagement models with milestone governance. Get named in Kim's 100-day review before it concludes.", p:'High' },
+              ]).map((r,i)=>(
+                <tr key={i} style={{ background:i%2===0?'var(--bg-surface)':'var(--bg-raised)' }}>
+                  <td style={{ padding:'11px 14px', color:'var(--navy)', borderBottom:'1px solid var(--border)', fontWeight:500, lineHeight:1.55, maxWidth:180 }}>{r.h}</td>
+                  <td style={{ padding:'11px 14px', borderBottom:'1px solid var(--border)' }}><span style={{ padding:'2px 8px', borderRadius:4, background:'rgba(27,54,93,0.07)', color:'var(--navy)', fontSize:12, fontWeight:600, display:'inline-block' }}>{r.s1}</span></td>
+                  <td style={{ padding:'11px 14px', borderBottom:'1px solid var(--border)' }}><span style={{ padding:'2px 8px', borderRadius:4, background:'rgba(27,54,93,0.07)', color:'var(--navy)', fontSize:12, fontWeight:600, display:'inline-block' }}>{r.s2}</span></td>
+                  <td style={{ padding:'11px 14px', borderBottom:'1px solid var(--border)' }}><span style={{ padding:'2px 8px', borderRadius:4, background:'rgba(27,54,93,0.07)', color:'var(--navy)', fontSize:12, fontWeight:600, display:'inline-block' }}>{r.s3}</span></td>
+                  <td style={{ padding:'11px 14px', color:'var(--text-2)', borderBottom:'1px solid var(--border)', lineHeight:1.6, maxWidth:220 }}>{r.a}</td>
+                  <td style={{ padding:'11px 14px', borderBottom:'1px solid var(--border)', whiteSpace:'nowrap' }}>
+                    <span style={{ padding:'3px 10px', borderRadius:20, fontSize:10.5, fontWeight:700, background:(r.p==='CRITICAL'||r.p==='Critical')?'rgba(220,38,38,0.1)':(r.p==='High'||r.p==='HIGH')?'rgba(217,119,6,0.1)':'rgba(27,54,93,0.08)', color:(r.p==='CRITICAL'||r.p==='Critical')?'#dc2626':(r.p==='High'||r.p==='HIGH')?'#d97706':'var(--navy)' }}>{r.p}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 2: 90-Day Action Roadmap */}
+      <div>
+        <div style={{ fontSize:16, fontWeight:700, color:'var(--navy)', fontFamily:'Playfair Display,serif', marginBottom:14, borderBottom:'2px solid var(--border)', paddingBottom:10 }}>2 — 90-Day Action Roadmap</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
+          {(isR ? [
+            { phase:'Days 1–30 — ACTIVATE', c:'#dc2626', bg:'rgba(220,38,38,0.04)', items:['Verify Head of RA (Susanne Fors/successor) and re-engage with DAXXIFY EU/EMA scoping as opening agenda','Ask single PV question: "Who is managing your cervical dystonia PV programme?" — have Freyr PV proposal ready within 5 days if gap confirmed','Deliver EU/EMA scoping brief: Freyr 850+ EU affiliate network, freya.intelligence EMA pathway analysis, programme timeline estimate'] },
+            { phase:'Days 31–60 — EXPAND', c:'#d97706', bg:'rgba(217,119,6,0.04)', items:['Initiate 60-day freya.intelligence POC for EU regulatory monitoring — approved at regulatory team level, no CEO sign-off required','Deliver PV proposal if gap confirmed: ICSR processing, PSUR/PBRER authoring, signal detection, REMS compliance scope for cervical dystonia','Request Kira Schwartz (CLO) introduction via Head of RA to brief CLO on Freyr GxP compliance framework'] },
+            { phase:'Days 61–90 — SCALE', c:'#10b981', bg:'rgba(16,185,129,0.04)', items:['Hitchcock (CInO) scientific outreach on Phase II regulatory complexity and VIA NMPA China case study','Build Crown CEO Brief for delivery via Schwartz to Moiz — DAXXIFY EU gap quantified in PE terms ($320M+ cumulative lost revenue)','Prepare ROI model for Leffler: EU programme NPV vs cost, PV compliance risk exposure, vendor consolidation savings from Full-Service'] },
+          ] : [
+            { phase:'Days 1–30 — ACTIVATE', c:'#dc2626', bg:'rgba(220,38,38,0.04)', items:['Initiate Robertson QBR: eCTD v4.0 readiness for H2 2026 launches, freya.intelligence 60-day POC proposal, H2 2026 launch support scope for oveporexton','Contact Robertson with reference to NatRevDrugDisc 2025 paper: "SUBMIT PRO and rDMS are the production-grade operational layer of your published architecture"','Engage Ricci (CDTO) and Innovation Capability Centers for AI-ready data platform pilots via Robertson/Duprey introduction'] },
+            { phase:'Days 31–60 — EXPAND', c:'#d97706', bg:'rgba(217,119,6,0.04)', items:['Launch freya.intelligence 60-day POC with Robertson team — JP/EU/US pipeline asset monitoring for oveporexton, rusfertide, zasocitinib','Pilot VIA with Transformation Office — Factory of the Future programme manufacturing consolidation variation management','Propose SUBMIT PRO eCTD v4.0 deployment scoping for oveporexton NDA — demonstrate production-grade PMDA Japan v4.0 support'] },
+            { phase:'Days 61–90 — SCALE', c:'#10b981', bg:'rgba(16,185,129,0.04)', items:['Duprey first meeting via Robertson: "How many FTEs does Takeda spend on regulatory monitoring?" — workforce framing, not technology pitch','Identify Head of PV for three simultaneous commercial launches — ask Robertson: "Who is managing PV for oveporexton and rusfertide?"','Prepare CEO Brief for Duprey to deliver to Kim — dual-pressure: launch support surge capacity + JPY 200B savings contribution from Freyr automation'] },
+          ]).map(col=>(
+            <div key={col.phase} style={{ background:col.bg, border:`1px solid ${col.c}25`, borderRadius:12, padding:'16px 18px' }}>
+              <div style={{ fontSize:11, fontWeight:700, color:col.c, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:14 }}>{col.phase}</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {col.items.map((item,i)=>(
+                  <div key={i} style={{ background:'var(--bg-surface)', border:`1px solid ${col.c}20`, borderRadius:9, padding:'11px 14px' }}>
+                    <p style={{ fontSize:13, color:'var(--text-2)', lineHeight:1.65, margin:0 }}>{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 3: Engagement Tone by Stakeholder */}
+      <div>
+        <div style={{ fontSize:16, fontWeight:700, color:'var(--navy)', fontFamily:'Playfair Display,serif', marginBottom:14, borderBottom:'2px solid var(--border)', paddingBottom:10 }}>3 — Engagement Tone by Stakeholder</div>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13.5 }}>
+            <thead><tr style={{ background:'var(--navy)', color:'#fff' }}>
+              {['STAKEHOLDER','LEAD WITH','TONE','AVOID','ROLE'].map(h=>(
+                <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:700, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {(isR ? [
+                { n:'Head of RA', l:'EU/EMA scoping + PV programme status', t:'Trusted regulatory partner — long-term relationship', a:'Crown governance language in first contact', r:'Anchor Contact' },
+                { n:'Kira Schwartz (CLO)', l:'Compliance risk reduction — GxP, PV obligation management', t:'Risk management conversation, not sales pitch', a:'Regulatory science detail, speculative claims', r:'Compliance Gatekeeper' },
+                { n:'Nadeem Moiz (CEO)', l:'EU commercial gap in PE terms — $1.5B+ market, 3+ years foregone revenue', t:'PE operator — 90-second commercial urgency pitch', a:'Innovation language, broad service catalogue', r:'Strategic Endorser' },
+                { n:'Scott Leffler (CFO)', l:'ROI: EU programme NPV vs cost, PV compliance risk exposure', t:'EBITDA framing — financial proxy for Crown PE sponsors', a:'Regulatory science, no ROI model = no meeting', r:'Budget Authority' },
+                { n:'Thomas Hitchcock (CInO)', l:'Multi-indication regulatory complexity, VIA for NMPA China', t:'Scientific peer-to-peer — not a commercial pitch', a:'Pure operational framing, overstating AI automation', r:'Technology Sponsor' },
+                { n:'Nick Crowe (COO)', l:'Vendor consolidation savings, FTE reduction, variation cycle time metrics', t:'Operational executor — cost per delivery, process standardisation', a:'Regulatory science, technology vision without operational metrics', r:'Operational Validator' },
+              ] : [
+                { n:'Julie Kim (CEO)', l:'Dual-pressure: launch velocity AND cost reduction simultaneously', t:'Commercial-first, patient-outcome connected, time-rationed', a:'Slow pilots, 18-month roadmaps, tech architecture jargon', r:'Exec Sponsor' },
+                { n:'Lauren Duprey (CTO)', l:'"How many FTEs does Takeda spend on regulatory monitoring?" — workforce framing', t:'People-first transformation partner, storytelling not specs', a:'AI model comparisons, tech architecture, enterprise software jargon', r:'Budget Owner' },
+                { n:'Andrew Robertson (VP GRA)', l:'"We read your NatRevDrugDisc 2025 paper — SUBMIT PRO is the production layer of your published architecture"', t:'Intellectual peer, academic register, curiosity-first', a:'Generic AI slides, competing with Weave Bio, commercial-first framing', r:'Internal Champion' },
+                { n:'Gabriele Ricci (CDTO)', l:'freya fusion multi-LLM architecture — maps to his multi-model orchestration philosophy', t:'Production-grade evidence — peer-to-peer technical', a:'The word "pilot", generic AI pitch', r:'Tech Gatekeeper' },
+                { n:'Tatiana Ishida (Labeling)', l:'LABEL 360 for 3 simultaneous launch CCDS harmonisation', t:'Operational delivery excellence, proven platform', a:'New relationship investment needed — build on active engagement', r:'Delivery Contact' },
+                { n:'Kevin Stevens (PDT/Device)', l:'VIA 20-site pilot — Factory of the Future manufacturing consolidation', t:'Manufacturing ROI — cost per filing, variation cycle time reduction', a:'Regulatory science framing — this is a manufacturing conversation', r:'VIA Entry Point' },
+              ]).map((r,i)=>(
+                <tr key={i} style={{ background:i%2===0?'var(--bg-surface)':'var(--bg-raised)' }}>
+                  <td style={{ padding:'11px 14px', borderBottom:'1px solid var(--border)', fontWeight:700, color:'var(--navy)', whiteSpace:'nowrap' }}>{r.n}</td>
+                  <td style={{ padding:'11px 14px', borderBottom:'1px solid var(--border)', color:'var(--text-2)', lineHeight:1.6 }}>{r.l}</td>
+                  <td style={{ padding:'11px 14px', borderBottom:'1px solid var(--border)', color:'var(--text-2)', lineHeight:1.6 }}>{r.t}</td>
+                  <td style={{ padding:'11px 14px', borderBottom:'1px solid var(--border)', color:'#dc2626', fontWeight:600, lineHeight:1.6 }}>{r.a}</td>
+                  <td style={{ padding:'11px 14px', borderBottom:'1px solid var(--border)' }}>
+                    <span style={{ padding:'2px 10px', borderRadius:20, background:'var(--navy-faint)', color:'var(--navy)', fontSize:11.5, fontWeight:600, whiteSpace:'nowrap' }}>{r.r}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── NUDGE INTELLIGENCE TABS ─────────────────────────────────────────────────
+function NudgeIntel({ accountId, accountName }: { accountId:string; accountName:string }) {
+  const [tab, setTab] = useState<'companyProfile'|'keySignals'|'salesIntelligence'>('companyProfile')
+  const data = NUDGE_PROFILE[accountId]
+  if (!data) return null
+  const tabs: [typeof tab,string][] = [['companyProfile','Company Profile'],['keySignals','Key Signals'],['salesIntelligence','Sales Intelligence']]
+  const cards = data[tab]
+
+  return (
+    <div>
+      <div style={{ display:'flex', gap:8, marginBottom:18, flexWrap:'wrap' }}>
+        {tabs.map(([k,l])=>(
+          <button key={k} onClick={()=>setTab(k)} style={{ padding:'8px 18px', borderRadius:22, cursor:'pointer', fontSize:13, fontWeight:700, fontFamily:'Source Sans 3,sans-serif', border:tab===k?'none':'1px solid var(--border)', background:tab===k?'var(--navy)':'var(--bg-surface)', color:tab===k?'#fff':'var(--text-2)', transition:'all 160ms', boxShadow:tab===k?'0 2px 10px rgba(27,54,93,0.25)':'none' }}>{l}</button>
+        ))}
+      </div>
+      <div style={{ fontSize:11.5, fontWeight:600, color:'var(--text-3)', letterSpacing:'0.04em', marginBottom:14 }}>
+        Nudge Signal Intelligence — {tabs.find(t=>t[0]===tab)![1]} · {accountName}
+      </div>
+      {/* All three tabs: navy numbered bookmark cards */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom: tab==='salesIntelligence' ? 28 : 0 }}>
+        {(cards||[]).map((c:any,i:number)=>(
+          <div key={c.title} style={{ background:'var(--navy)', border:'1px solid rgba(30,61,110,0.8)', borderRadius:12, padding:'20px 22px', position:'relative', overflow:'hidden' }}>
+            <div style={{ position:'absolute', top:0, left:18, width:32, height:40, background:'#D4AF37', display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:5, clipPath:'polygon(0 0,100% 0,100% 100%,50% 82%,0 100%)' }}>
+              <span style={{ fontFamily:'Playfair Display,serif', fontSize:13, fontWeight:700, color:'var(--navy)' }}>{i+1}</span>
+            </div>
+            <div style={{ paddingLeft:44 }}>
+              <div style={{ fontFamily:'Playfair Display,serif', fontSize:15, fontWeight:700, color:'#fff', marginBottom:7, lineHeight:1.25 }}>{c.title}</div>
+            </div>
+            <p style={{ fontSize:13, color:'rgba(255,255,255,0.75)', lineHeight:1.65, margin:'4px 0 0' }}>{c.body}</p>
+            <div style={{ marginTop:14, paddingTop:12, borderTop:'0.5px solid rgba(212,169,60,0.25)' }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:'0.14em', color:'rgba(212,169,60,0.75)', textTransform:'uppercase', marginBottom:7 }}>Signals Triangulated</div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
+                {(c.signals||[]).map((s:string)=><span key={s} style={{ fontSize:10.5, fontWeight:600, color:'#D4AF37', background:'rgba(184,137,42,0.18)', border:'0.5px solid rgba(212,169,60,0.35)', borderRadius:5, padding:'2px 8px' }}>{s}</span>)}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Sales Intelligence also shows structured analysis below the cards */}
+      {tab === 'salesIntelligence' && (
+        <SalesIntel accountId={accountId}/>
+      )}
+    </div>
+  )
+}
+
+// ─── PIPELINE SECTION ────────────────────────────────────────────────────────
+function PipelineSection({ info, isRevance }: { info:any; isRevance:boolean }) {
+  const [openA, setOpenA] = useState<number|null>(null)
+  const [openT, setOpenT] = useState<number|null>(null)
+  const pi = info.pipelineInsights
+  if (!pi||typeof pi==='string') return <p style={{ fontSize:15, color:'var(--navy)', lineHeight:1.85 }}>{pi||'Pipeline data not available.'}</p>
+  const SC: Record<string,any> = {
+    'COMMERCIAL':           { bg:'rgba(16,185,129,0.1)', c:'#10b981' },
+    'COMMERCIAL — PV GAP':  { bg:'rgba(220,38,38,0.1)', c:'#dc2626' },
+    'UNMET REGULATORY NEED':{ bg:'rgba(220,38,38,0.1)', c:'#dc2626' },
+    'IN DEVELOPMENT':       { bg:'rgba(217,119,6,0.1)', c:'#d97706' },
+    'PHASE II':             { bg:'rgba(27,54,93,0.08)', c:'var(--navy)' },
+    'ACTIVE':               { bg:'rgba(16,185,129,0.1)', c:'#10b981' },
+    'STRONG':               { bg:'rgba(16,185,129,0.12)', c:'#059669' },
+    'ACTIVE — UPGRADE':     { bg:'rgba(217,119,6,0.1)', c:'#d97706' },
+    'OPPORTUNITY':          { bg:'rgba(27,54,93,0.08)', c:'var(--navy)' },
+  }
+  return (
+    <div>
+      {pi.summary && <div style={{ padding:'18px 22px', background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:12, marginBottom:24, boxShadow:'var(--glow-card)' }}><p style={{ fontSize:15, color:'var(--navy)', lineHeight:1.85, margin:0 }}>{pi.summary}</p></div>}
+      {(pi.assetProfile||pi.currentBase) && (
+        <div style={{ marginBottom:28 }}>
+          <div style={{ fontSize:14, fontWeight:700, color:'var(--navy)', fontFamily:'Playfair Display,serif', marginBottom:12 }}>{isRevance?'DAXXIFY Asset Profile — Regulatory Lifecycle':'Current Revenue Base — Core Services'}</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {(pi.assetProfile||pi.currentBase).map((item:any,i:number)=>{
+              const sc = SC[item.status]||{ bg:'rgba(27,54,93,0.08)', c:'var(--navy)' }
+              return (
+                <div key={i} onClick={()=>setOpenA(openA===i?null:i)} style={{ padding:'13px 18px', background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:10, cursor:'pointer', boxShadow:'var(--glow-card)' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <div style={{ fontWeight:600, color:'var(--navy)', fontSize:14 }}>{item.dimension}</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ padding:'2px 10px', borderRadius:20, fontSize:10.5, fontWeight:700, background:sc.bg, color:sc.c, whiteSpace:'nowrap' }}>{item.status}</span>
+                      <ChevronDown size={13} style={{ color:'var(--text-3)', transform:openA===i?'rotate(180deg)':'none', transition:'transform 200ms' }}/>
+                    </div>
+                  </div>
+                  {openA===i&&item.detail&&<p style={{ fontSize:13.5, color:'var(--text-2)', lineHeight:1.65, margin:'10px 0 0', animation:'slideDown 200ms ease' }}>{item.detail}</p>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+      {pi.revenueTimeline && (
+        <div style={{ marginBottom:28 }}>
+          <div style={{ fontSize:14, fontWeight:700, color:'var(--navy)', fontFamily:'Playfair Display,serif', marginBottom:12 }}>Revenue Timeline — 3-Year Projection</div>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13.5 }}>
+              <thead><tr style={{ background:'var(--navy)', color:'#fff' }}>
+                {['Service Track','FY2026 H2','FY2027','FY2028','3-Year Total','Urgency'].map(h=>(
+                  <th key={h} style={{ padding:'9px 14px', textAlign:'left', fontSize:11, fontWeight:700, letterSpacing:'0.05em', whiteSpace:'nowrap' }}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {pi.revenueTimeline.map((r:any,i:number)=>{
+                  const tot=r.service.includes('TOTAL')
+                  const UM: Record<string,any> = { 'MOST URGENT':{bg:'rgba(220,38,38,0.1)',c:'#dc2626'}, 'URGENT':{bg:'rgba(234,88,12,0.1)',c:'#ea580c'}, 'HIGH':{bg:'rgba(217,119,6,0.1)',c:'#d97706'}, 'ACTIVE':{bg:'rgba(16,185,129,0.1)',c:'#10b981'}, 'NEAR-TERM':{bg:'rgba(16,185,129,0.1)',c:'#10b981'}, 'TARGET':{bg:'rgba(27,54,93,0.12)',c:'var(--navy)'}, 'FY2027':{bg:'rgba(27,54,93,0.08)',c:'var(--navy)'} }
+                  const uc = UM[r.urgency]||{ bg:'rgba(27,54,93,0.08)', c:'var(--navy)' }
+                  return (
+                    <tr key={i} style={{ background:tot?'var(--navy-faint)':i%2===0?'var(--bg-surface)':'var(--bg-raised)', fontWeight:tot?700:400 }}>
+                      <td style={{ padding:'10px 14px', color:'var(--navy)', borderBottom:'1px solid var(--border)', fontWeight:tot?800:600 }}>{r.service}</td>
+                      {[r.fy26h2,r.fy27,r.fy28,r.total].map((v:string,j:number)=>(
+                        <td key={j} style={{ padding:'10px 14px', color:tot?'var(--gold-muted)':'var(--text-2)', borderBottom:'1px solid var(--border)', fontWeight:tot?800:500 }}>{v}</td>
+                      ))}
+                      <td style={{ padding:'10px 14px', borderBottom:'1px solid var(--border)' }}>
+                        <span style={{ padding:'2px 9px', borderRadius:20, fontSize:10.5, fontWeight:700, background:uc.bg, color:uc.c }}>{r.urgency}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      {pi.technologyPipeline && (
+        <div style={{ marginBottom:24 }}>
+          <div style={{ fontSize:14, fontWeight:700, color:'var(--navy)', fontFamily:'Playfair Display,serif', marginBottom:12 }}>Technology Platform — Sales Stage & Entry Path</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {pi.technologyPipeline.map((t:any,i:number)=>(
+              <div key={i} onClick={()=>setOpenT(openT===i?null:i)} style={{ display:'grid', gridTemplateColumns:'190px 1fr 110px 30px', gap:14, padding:'13px 18px', background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:10, cursor:'pointer', boxShadow:'var(--glow-card)' }}>
+                <div style={{ fontFamily:'Playfair Display,serif', fontSize:13.5, fontWeight:700, color:'var(--navy)' }}>{t.platform}</div>
+                <div>
+                  <p style={{ fontSize:13, color:'var(--text-2)', lineHeight:1.6, margin:0 }}>{t.entryPath}</p>
+                  {openT===i&&t.nextAction&&<div style={{ marginTop:8, fontSize:12.5, color:'#10b981', fontWeight:600, animation:'slideDown 200ms ease' }}>→ {t.nextAction}</div>}
+                </div>
+                <span style={{ padding:'2px 9px', borderRadius:20, fontSize:10.5, fontWeight:700, height:'fit-content', background:t.stage.includes('NEAR')||t.stage.includes('TRIAL')||t.stage.includes('PROPOSAL')?'rgba(16,185,129,0.1)':'rgba(27,54,93,0.08)', color:t.stage.includes('NEAR')||t.stage.includes('TRIAL')||t.stage.includes('PROPOSAL')?'#10b981':'var(--navy)' }}>{t.stage}</span>
+                <ChevronDown size={13} style={{ color:'var(--text-3)', transform:openT===i?'rotate(180deg)':'none', transition:'transform 200ms', marginTop:2 }}/>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {pi.growthServicesOpportunity && (
+        <div style={{ marginBottom:24 }}>
+          <div style={{ fontSize:14, fontWeight:700, color:'var(--navy)', fontFamily:'Playfair Display,serif', marginBottom:12 }}>Growth Services — Cross-Sell Pipeline</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            {pi.growthServicesOpportunity.map((g:any,i:number)=>(
+              <div key={i} style={{ padding:'14px 18px', background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'var(--glow-card)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+                  <div style={{ fontWeight:700, color:'var(--navy)', fontSize:14 }}>{g.service}</div>
+                  <span style={{ padding:'2px 9px', borderRadius:20, fontSize:10.5, fontWeight:700, background:'rgba(27,54,93,0.08)', color:'var(--navy)', whiteSpace:'nowrap' }}>{g.timing}</span>
+                </div>
+                <p style={{ fontSize:13, color:'var(--text-2)', lineHeight:1.6, margin:'0 0 8px' }}>{g.profile}</p>
+                <span style={{ padding:'2px 9px', borderRadius:20, fontSize:10.5, fontWeight:700, background:'rgba(16,185,129,0.09)', color:'#10b981' }}>{g.revenue}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {pi.landExpandTransform && (
+        <div style={{ marginTop:24 }}>
+          <div style={{ fontSize:14, fontWeight:700, color:'var(--navy)', fontFamily:'Playfair Display,serif', marginBottom:14 }}>Land → Expand → Transform: 3-Year Account Ambition</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+            {pi.landExpandTransform.split('|').map((phase:string,i:number)=>{
+              const colors=['#1B365D','#D4AF37','#10b981']
+              const labels=['🌱 LAND','📈 EXPAND','🚀 TRANSFORM']
+              const parts=phase.trim().split(':')
+              return (
+                <div key={i} style={{ padding:'16px 18px', background:'var(--bg-surface)', borderTop:`3px solid ${colors[i]}`, borderRadius:'0 0 12px 12px', border:'1px solid var(--border)', boxShadow:'var(--glow-card)' }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:colors[i], textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>{labels[i]}</div>
+                  <p style={{ fontSize:13, color:'var(--text-2)', lineHeight:1.65, margin:0 }}>{parts.slice(1).join(':').trim()}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── NEWS MODAL ──────────────────────────────────────────────────────────────
+function NewsModal({ article, onClose }: { article:any; onClose:()=>void }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" style={{ width:680, maxWidth:'94vw', padding:28 }} onClick={e=>e.stopPropagation()}>
+        <div style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:16 }}>
+          <div style={{ flex:1 }}>
+            <span style={{ fontSize:11, fontWeight:700, color:'var(--gold-muted)', letterSpacing:'0.12em', textTransform:'uppercase' }}>{article.date}</span>
+            <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, marginTop:5, lineHeight:1.3, color:'var(--navy)', margin:'5px 0 0' }}>{article.title}</h2>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', flexShrink:0 }}><X size={20}/></button>
+        </div>
+        <div style={{ height:3, background:'linear-gradient(90deg,var(--gold),var(--navy))', marginBottom:20, borderRadius:2 }}/>
+        <p style={{ fontSize:14.5, color:'var(--text-2)', lineHeight:1.85 }}>{article.body}</p>
+        <div style={{ marginTop:20 }}>
+          <a href="#" onClick={e=>e.preventDefault()} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'10px 20px', borderRadius:8, background:'var(--navy)', color:'#fff', fontSize:13.5, fontWeight:600, textDecoration:'none' }}>
+            Read full article <ArrowRight size={13}/>
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── MAIN PAGE ───────────────────────────────────────────────────────────────
+export default function AccountInfoPage() {
+  const { id } = useParams()
+  const nav = useNavigate()
+  const [active, setActive] = useState('nudge')
+  const [newsTab, setNewsTab] = useState<'internal'|'external'>('internal')
+  const [selectedArticle, setSelectedArticle] = useState<any>(null)
+  const [notes, setNotes] = useState('')
+
+  const account = ACCOUNTS_LIST.find(a=>a.id===id)
+  const info = id ? ACCOUNT_INFO[id] : null
+
+  useEffect(()=>{ setActive('nudge'); window.scrollTo({top:0}) }, [id])
+
+  if (!account||!info) {
+    return (
+      <div>
+        <h1 style={{ fontFamily:'Playfair Display,serif', fontSize:26, color:'var(--navy)', margin:'0 0 8px' }}>Account Info</h1>
+        <p style={{ fontSize:14.5, color:'var(--text-3)', marginBottom:24 }}>Select an account to view detailed intelligence.</p>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          {ACCOUNTS_LIST.map(a=>(
+            <div key={a.id} className="card card-clickable" style={{ padding:'20px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }} onClick={()=>nav(`/accounts/${a.id}`)}>
+              <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+                <div style={{ width:5, height:40, borderRadius:3, background:'var(--gold)', flexShrink:0 }}/>
+                <div>
+                  <div style={{ fontFamily:'Playfair Display,serif', fontSize:17, fontWeight:700, color:'var(--navy)' }}>{a.name}</div>
+                  <div style={{ fontSize:13, color:'var(--text-3)' }}>{a.executivesMapped} executives mapped</div>
+                </div>
+              </div>
+              <ArrowRight size={18} style={{ color:'var(--gold-muted)' }}/>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const isRevance = id==='revance'
+  const externalNews = id==='revance' ? NEWS_EXTERNAL_REVANCE : NEWS_EXTERNAL_TAKEDA
+  const news = newsTab==='internal' ? NEWS_INTERNAL : externalNews
+
+  const freyrPlays = isRevance ? [
+    { title:'EU Regulatory Authorisation Programme', subtitle:'EMA Centralised Procedure — DAXXIFY', icon:'🇪🇺', color:'#1B365D', score:92, details:[{label:'Market Opportunity',value:'€1.8B EU aesthetics by 2027'},{label:'Regulatory Gap',value:'4+ yrs no EMA authorisation'},{label:'Timeline',value:'H2 2026 EMA pre-submission'},{label:'Differentiator',value:'850+ EU in-country affiliates'}], bullets:['DAXXIFY FDA-approved September 2022 — zero EU commercial revenue after 3+ years','Crown PE thesis requires DAXXIFY EU expansion for $924M acquisition ROI — board-level priority','Freyr 850+ EU affiliates + freya.intelligence EMA pathway analysis: no competitor equivalent','No incumbent — Freyr can own this programme from day one'], implication:'Freyr is the single regulatory partner who can deliver the full EMA authorisation programme. This is the uncontested entry point.' },
+    { title:'PV Programme — DAXXIFY Cervical Dystonia', subtitle:'GxP-Compliant PV Operations Since May 2024', icon:'⚕️', color:'#D4AF37', score:85, details:[{label:'Commercial Since',value:'May 2024 (13+ months active)'},{label:'PV Requirement',value:'PSUR, Signal Detection, REMS'},{label:'Black Box Warning',value:'Highest FDA safety category'},{label:'Entry',value:'Single question to Head of RA'}], bullets:['Active commercial PV programme since May 2024 — 13+ months running with no confirmed Freyr engagement','Botulinum toxin therapeutics carry a Black Box Warning requiring REMS, ongoing PSUR/PBRER, signal detection','Entry: one question — "Who is running your PV programme for cervical dystonia?"','Lowest-friction cross-sell in any account: adjacent to existing RA relationship, no new relationship investment'], implication:'PV obligation exists today. Single conversation to unlock $3.6M revenue track. Act this week.' },
+    { title:'Variation Management — NMPA China + Multi-Indication', subtitle:'VIA Platform: Fosun China + Phase II Pipeline', icon:'🔄', color:'#2e5a96', score:78, details:[{label:'Active Pathways',value:'FDA, NMPA China, Phase II'},{label:'Partner',value:'Fosun Pharma (China)'},{label:'Tool',value:'VIA — Variation Identification Agent'},{label:'Sponsor',value:'Thomas Hitchcock (CInO)'}], bullets:['Fosun Pharma NMPA China development programme active and progressing — NMPA variation management workload increasing','VIA provides NMPA-specific variation recommendations natively — no competitor equivalent for China variations','DAXXIFY Phase II for upper limb spasticity + plantar fasciitis compounds variation management across geographies','Thomas Hitchcock (CInO) is the internal sponsor — approach as scientific peer on multi-indication complexity'], implication:"VIA is Freyr's technology right to win at Revance. No incumbent. Entry via Hitchcock as scientific peer, not as vendor." },
+  ] : [
+    { title:'Regulatory Operations — 3 H2 2026 Launches', subtitle:'oveporexton, rusfertide, zasocitinib', icon:'🚀', color:'#1B365D', score:95, details:[{label:'oveporexton',value:'BT + FT, FDA review H2 2026'},{label:'rusfertide',value:'Priority Review, H2 2026'},{label:'zasocitinib',value:'EU/US prep, H1 2027'},{label:'Risk',value:'4,500-person restructuring simultaneous'}], bullets:['oveporexton (TAK-861) narcolepsy type 1: Breakthrough Therapy + Fast Track. FDA review H2 2026. US/Japan/China NDA/MAA simultaneous','rusfertide (PV): FDA Priority Review designation. H2 2026 US launch target','zasocitinib (psoriasis): EU/US preparation. H1 2027 launch target','Three concurrent submissions during 4,500-person restructuring creates outsourcing mandate Freyr is uniquely positioned to fill','Robertson QBR Q3 2026 is the trigger for all three launch support streams'], implication:'This is the most urgent near-term entry. Robertson QBR in Q3 2026 — confirm resource allocation NOW.' },
+    { title:'AI-Driven Regulatory Operations — JPY 200B Programme', subtitle:'freya fusion GenAI + VIA Automation', icon:'🤖', color:'#D4AF37', score:90, details:[{label:'Savings Target',value:'JPY 200B+ by FY2028'},{label:'FTE Reduction',value:'~4,500 globally'},{label:'Budget Owner',value:'Duprey — Transformation Office'},{label:'Tech Gatekeeper',value:'Ricci — CDTO'}], bullets:["Duprey's Transformation Office building FY2027 technology portfolio NOW — not future planning, immediate",'VIA eliminates manual variation management across 25+ manufacturing sites — auditable FTE reduction for Duprey','freya.intelligence replaces regulatory monitoring FTEs with automated intelligence across 95,000+ regulations','Lead with workforce framing: "How many FTEs does Takeda spend on regulatory monitoring?"',"Ricci's multi-model philosophy maps directly to freya fusion architecture"], implication:"Transformation Office is the budget owner. Duprey meeting via Robertson is the most critical single action in Q3 2026." },
+    { title:'eCTD v4.0 + Robertson GenAI Dossier Programme', subtitle:"Robertson's published vision in production", icon:'📄', color:'#2e5a96', score:88, details:[{label:'PMDA Japan',value:'Mandatory 2026 — affects NOW'},{label:'Robertson Paper',value:'NatRevDrugDisc 2025'},{label:'GenAI Target',value:'50%+ compilation reduction'},{label:'Freyr Tool',value:'SUBMIT PRO + freya fusion'}], bullets:['PMDA Japan eCTD v4.0 mandate effective 2026 — affects oveporexton Japan NDA immediately, not in future','Robertson published (NatRevDrugDisc 2025) the case for cloud-based federated submission platforms — SUBMIT PRO + freya fusion IS this architecture in production','GenAI dossier programme target: 50%+ compilation time reduction. freya fusion multi-LLM with GxP guardrails is the production platform','Entry: "We read your 2025 NatRevDrugDisc paper — SUBMIT PRO and rDMS are the production-grade operational layer of exactly the architecture you described"'], implication:"Robertson has published the vision. Freyr built the production implementation. This is the single strongest technology entry argument." },
+  ]
+
+  return (
+    <Ctx.Provider value={active}>
+      <div style={{ paddingBottom:40 }}>
+
+        {/* ─ Back button */}
+        <div style={{ marginBottom:6 }}>
+          <button onClick={()=>nav('/accounts')} style={{ display:'inline-flex', alignItems:'center', gap:6, background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', fontSize:13, fontWeight:600, fontFamily:'Source Sans 3,sans-serif', padding:'6px 0', transition:'color 150ms' }}
+            onMouseEnter={e=>e.currentTarget.style.color='var(--navy)'}
+            onMouseLeave={e=>e.currentTarget.style.color='var(--text-3)'}>
+            <ArrowLeft size={14}/> Back to Accounts
+          </button>
+        </div>
+
+        {/* ─ Account header */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
+          <div>
+            <div style={{ fontSize:10.5, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:4 }}>ACCOUNT INTELLIGENCE</div>
+            <h1 style={{ fontFamily:'Playfair Display,serif', fontSize:26, color:'var(--navy)', margin:0 }}>{account.name}</h1>
+          </div>
+          <span style={{ padding:'3px 12px', borderRadius:20, fontSize:11.5, fontWeight:700, background:isRevance?'rgba(27,54,93,0.08)'  :'rgba(212,175,55,0.12)', color:isRevance?'var(--navy)'  :'#b89428', border:isRevance?'1px solid rgba(27,54,93,0.15)'  :'1px solid rgba(212,175,55,0.3)' }}>
+            {isRevance?'FOCUSED GROWTH':'STRATEGIC PRIORITY'}
+          </span>
+        </div>
+
+        {/* ─ Two-column layout */}
+        <div style={{ display:'grid', gridTemplateColumns:'210px 1fr', gap:16, alignItems:'start' }}>
+
+          {/* Left nav */}
+          <div className="card" style={{ padding:'10px 6px', position:'sticky', top:16, boxShadow:'var(--shadow-xs)', maxHeight:'calc(100vh - 40px)', overflowY:'auto' }}>
+            <div style={{ padding:'0 10px 8px', fontSize:9.5, fontWeight:900, letterSpacing:'0.14em', color:'var(--text-3)', textTransform:'uppercase' }}>Sections</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:1 }}>
+              {NAV_SECTIONS.map(s=>(
+                <button key={s.id} onClick={()=>{ setActive(s.id); window.scrollTo({top:0,behavior:'smooth'}) }}
+                  style={{ display:'block', width:'100%', textAlign:'left', padding:'9px 12px', borderRadius:8, border:'none', background:active===s.id?'var(--navy)'  :'transparent', color:active===s.id?'#fff'  :'var(--text-2)', fontSize:13, fontWeight:active===s.id?700:400, fontFamily:'Source Sans 3,sans-serif', cursor:'pointer', transition:'all 160ms' }}
+                  onMouseEnter={e=>{ if(active!==s.id) e.currentTarget.style.background='var(--bg-hover)' }}
+                  onMouseLeave={e=>{ if(active!==s.id) e.currentTarget.style.background='transparent' }}
+                >{s.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Right content */}
+          <div style={{ minWidth:0 }}>
+
+            <Slide id="nudge">
+              <SecHeader title="Nudge Intelligence" sub={`Triangulated account signals for ${account.name}`} accent="var(--gold)"/>
+              <NudgeSignalCard text={info.nudgeSignal}/>
+              <NudgeIntel accountId={id!} accountName={account.name}/>
+              <div style={{ marginTop:20, padding:'20px 22px', background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:12 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--navy)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>ACCOUNT CONTEXT</div>
+                <p style={{ fontSize:14.5, color:'var(--text-2)', lineHeight:1.8, margin:0 }}>{info.accountContext}</p>
+              </div>
+            </Slide>
+
+            <Slide id="one-min">
+              <SecHeader title="One Minute Summary" sub={`Everything you need about ${account.name} in under 60 seconds`} accent="var(--gold)"/>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
+                {[
+                  { icon:'🏢', label:'COMPANY', value:account.name, sub:isRevance?'Specialty Pharma / Aesthetics':'Global Biopharmaceutical' },
+                  { icon:'💰', label:'REVENUE', value:info.financialSnapshot[0]?.value||'—', sub:info.financialSnapshot[0]?.label },
+                  { icon:'👥', label:'EMPLOYEES', value:isRevance?'~800':'~49,000', sub:'Global headcount 2026' },
+                  { icon:'📍', label:'HQ', value:isRevance?'Nashville, TN':'Osaka / Tokyo', sub:'Primary operations' },
+                  { icon:'⚡', label:'STRATEGIC POSTURE', value:isRevance?'PE-Backed Growth':'Strategic Priority', sub:isRevance?'Crown Labs acquisition':'Top 5 Freyr target globally' },
+                  { icon:'🎯', label:'FREYR OPPORTUNITY', value:isRevance?'$12–16M':'$18–22M', sub:'3-Year Revenue Target' },
+                  { icon:'🏃', label:'URGENCY', value:'HIGH', sub:isRevance?'H2 2026 vendor review':'CEO transition window' },
+                  { icon:'🔑', label:'PRIMARY ENTRY', value:isRevance?'EU Reg. Programme':'H2 2026 Launches', sub:isRevance?'DAXXIFY EMA gap — 4+ yrs':'3 concurrent filings, Robertson WARM' },
+                ].map((item,i)=>(
+                  <div key={i} style={{ background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:12, padding:'15px 16px', boxShadow:'var(--glow-card)', position:'relative', overflow:'hidden' }}>
+                    <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:i>=4?'var(--gold)':'var(--navy)' }}/>
+                    <div style={{ fontSize:18, marginBottom:8 }}>{item.icon}</div>
+                    <div style={{ fontSize:9.5, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:3 }}>{item.label}</div>
+                    <div style={{ fontFamily:'Playfair Display,serif', fontSize:15, fontWeight:700, color:'var(--navy)', marginBottom:3, lineHeight:1.25 }}>{item.value}</div>
+                    {item.sub&&<div style={{ fontSize:11.5, color:'var(--text-3)', lineHeight:1.4 }}>{item.sub}</div>}
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--navy)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:14 }}>EMERGING PRIORITIES</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                  {(info.emergingPriorities||[]).map((p:string,i:number)=>(
+                    <InsightCard key={i} index={i} title={p.length>80?p.slice(0,78)+'…':p} body={p.length>80?p:''} accent="var(--navy)"/>
+                  ))}
+                </div>
+              </div>
+            </Slide>
+
+            <Slide id="org-leadership">
+              <SecHeader title="Key Stakeholders" sub="Click any person to expand engagement intelligence, dos/don'ts, and Freyr selling points" accent="var(--navy)"/>
+              {/* Quick status summary row */}
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20 }}>
+                {(info.orgLeadership||[]).map((row:any,i:number)=>{
+                  const RM: Record<string,{c:string;bg:string}> = {cold:{c:'#1B365D',bg:'rgba(27,54,93,0.08)'},warm:{c:'#b89428',bg:'rgba(212,175,55,0.12)'},hot:{c:'#dc2626',bg:'rgba(220,38,38,0.1)'},active:{c:'#10b981',bg:'rgba(16,185,129,0.1)'}}
+                  const r = RM[(row.relationship||'cold').toLowerCase()]||RM.cold
+                  return (
+                    <span key={i} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 12px', borderRadius:20, background:r.bg, border:`1px solid ${r.c}22` }}>
+                      <span style={{ width:6, height:6, borderRadius:'50%', background:r.c }}/>
+                      <span style={{ fontSize:12.5, fontWeight:600, color:'var(--navy)' }}>{row.name}</span>
+                      <span style={{ fontSize:10.5, fontWeight:700, color:r.c, textTransform:'uppercase', letterSpacing:'0.04em' }}>{row.relationship}</span>
+                    </span>
+                  )
+                })}
+              </div>
+              {/* Single-column card list — no grid, no row stretching */}
+              <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                {(info.orgLeadership||[]).map((row:any,i:number)=><PersonCard key={i} person={row}/>)}
+              </div>
+            </Slide>
+
+            <Slide id="financial">
+              <SecHeader title="Financial Snapshot" sub="Revenue, growth, and financial performance context" accent="var(--gold)"/>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+                {(info.financialSnapshot||[]).map((item:any,i:number)=>{
+                  const ac=['var(--navy)','var(--gold-muted)','#0891b2','#10b981','var(--navy)','var(--gold-muted)','#0891b2','#10b981'][i%8]
+                  const ic=['💰','📊','📈','🎯','🏭','💎','🌍','📋'][i%8]
+                  return <div key={i} style={{ background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 18px', boxShadow:'var(--glow-card)', position:'relative', overflow:'hidden' }}>
+                    <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:ac, borderRadius:'12px 12px 0 0' }}/>
+                    <div style={{ fontSize:20, marginBottom:8 }}>{ic}</div>
+                    <div style={{ fontSize:22, fontWeight:800, color:ac, fontFamily:'Sora,sans-serif', marginBottom:5 }}>{item.value}</div>
+                    <div style={{ fontSize:12, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{item.label}</div>
+                  </div>
+                })}
+              </div>
+            </Slide>
+
+            <Slide id="revenue-target">
+              <SecHeader title="Revenue Target" sub="3-Year revenue model, assumptions and tracking by service line" accent="var(--gold)"/>
+              {info.revenueTarget&&(<>
+                <NudgeSignalCard text={info.revenueTarget.nudgeSignal}/>
+                <FreyrCard text={info.revenueTarget.whatThisMeansForFreyr}/>
+                <div style={{ overflowX:'auto', marginBottom:20 }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:14 }}>
+                    <thead><tr style={{ background:'var(--navy)', color:'#fff' }}>
+                      {['Revenue Track','FY2026 H2','FY2027','FY2028','3-Year Total'].map(h=><th key={h} style={{ padding:'10px 16px', textAlign:h==='Revenue Track'?'left':'center', fontWeight:700, fontSize:12, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>{(info.revenueTarget.rows||[]).map((r:any,i:number)=>(
+                      <tr key={i} style={{ background:r.track.includes('TOTAL')?'var(--navy-faint)':i%2===0?'var(--bg-surface)':'var(--bg-raised)' }}>
+                        <td style={{ padding:'10px 16px', color:'var(--navy)', borderBottom:'1px solid var(--border)', fontWeight:r.track.includes('TOTAL')?800:600 }}>{r.track}</td>
+                        {[r.fy26h2,r.fy27,r.fy28,r.total].map((v:string,j:number)=><td key={j} style={{ padding:'10px 16px', textAlign:'center', color:r.track.includes('TOTAL')?'var(--gold-muted)':'var(--text-2)', borderBottom:'1px solid var(--border)', fontWeight:r.track.includes('TOTAL')?800:500 }}>{v}</td>)}
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--navy)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:12 }}>MODEL ASSUMPTIONS</div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                    {(info.revenueTarget.assumptions||[]).map((a:string,i:number)=>(
+                      <InsightCard key={i} index={i} title={a.length>80?a.slice(0,78)+'…':a} body={a.length>80?a:''} accent="var(--gold)"/>
+                    ))}
+                  </div>
+                </div>
+              </>)}
+            </Slide>
+
+            <Slide id="strategic">
+              <SecHeader title="Strategic Priorities" sub="Board-level imperatives — click any priority to expand full detail, Freyr action, and Nudge signals" accent="var(--gold)"/>
+              <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                {(info.strategicPriorities||[]).map((item:any,i:number)=>{
+                  if (typeof item==='string') {
+                    const parts=item.split(' — ')
+                    return <InsightCard key={i} index={i} title={parts[0]} body={parts.slice(1).join(' — ')} accent="var(--navy)"/>
+                  }
+                  return <StratCard key={i} item={item} index={i}/>
+                })}
+              </div>
+            </Slide>
+
+            <Slide id="right-to-win">
+              <SecHeader title="Right to Win" sub="Competitive positioning and differentiators — click to expand each advantage" accent="var(--navy)"/>
+              {info.rightToWin&&(<>
+                <NudgeSignalCard text={info.rightToWin.nudgeSignal}/>
+                <FreyrCard text={info.rightToWin.whatThisMeansForFreyr}/>
+                <div style={{ fontSize:13, fontWeight:700, color:'var(--navy)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:14 }}>{isRevance ? "FREYR'S COMPETITIVE ADVANTAGES" : "TAKEDA'S COMPETITIVE ADVANTAGES"}</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:0, marginBottom:28 }}>
+                  {(info.rightToWin.advantages||[]).map((adv:any,i:number)=>(
+                    <InsightCard key={i} index={i} title={adv.title} body={adv.body} accent="var(--gold)"/>
+                  ))}
+                </div>
+                {!isRevance && (info.rightToWin as any).whyWeWin && (
+                  <>
+                    <div style={{ fontSize:13, fontWeight:700, color:'var(--navy)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:14 }}>WHY TAKEDA CAN WIN</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:28 }}>
+                      {((info.rightToWin as any).whyWeWin||[]).map((w:any,i:number)=>(
+                        <div key={i} style={{ padding:'14px 16px', background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:10 }}>
+                          <div style={{ fontSize:13, fontWeight:700, color:'var(--navy)', marginBottom:5 }}>{i+1}. {w.title}</div>
+                          <p style={{ fontSize:13, color:'var(--text-2)', lineHeight:1.65, margin:0 }}>{w.body}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <div style={{ fontSize:13, fontWeight:700, color:'var(--navy)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:14 }}>COMPETITIVE HEAT GRID</div>
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                    <thead><tr style={{ background:'var(--navy)', color:'#fff' }}>
+                      {(isRevance ? ['Area / Service','Freyr','ICON / Parexel / Accenture','Veeva','Other CRO'] : ['Area / Capability','Takeda','Roche','Novartis / AstraZeneca','Other Pharma']).map(h=><th key={h} style={{ padding:'9px 14px', textAlign:'left', fontWeight:700, fontSize:11, letterSpacing:'0.06em' }}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>{(info.rightToWin.competitiveGrid||[]).map((row:any,i:number)=>{
+                      const gc=(v:string)=>{if(!v||v==='None'||v==='Variable')return{bg:'#f8f9fa',c:'#9ca3af'};if(v==='Established'||v==='Freyr Only'||v==='Leader'||v==='Strong')return{bg:'rgba(16,185,129,0.1)',c:'#10b981'};if(v==='Active'||v==='Active discuss.'||v==='Expanding')return{bg:'rgba(16,185,129,0.08)',c:'#059669'};if(v==='Present'||v==='Limited')return{bg:'rgba(220,38,38,0.07)',c:'#dc2626'};if(v.includes('Competing')||v.includes('Vault'))return{bg:'rgba(220,38,38,0.1)',c:'#dc2626'};return{bg:'rgba(217,119,6,0.08)',c:'#d97706'}}
+                      return <tr key={i} style={{ background:i%2===0?'var(--bg-surface)':'var(--bg-raised)' }}>
+                        <td style={{ padding:'9px 14px', color:'var(--navy)', borderBottom:'1px solid var(--border)', fontWeight:600 }}>{row.area}</td>
+                        {[row.freyr,row.iconParexel,row.veeva,row.other].map((v:string,j:number)=>{const c=gc(v);return <td key={j} style={{padding:'9px 14px',borderBottom:'1px solid var(--border)'}}><span style={{padding:'3px 9px',borderRadius:5,background:c.bg,color:c.c,fontSize:11.5,fontWeight:600}}>{v||'None'}</span></td>})}
+                      </tr>
+                    })}</tbody>
+                  </table>
+                </div>
+              </>)}
+            </Slide>
+
+            <Slide id="next-action">
+              <SecHeader title="Next Best Action" sub="Prioritised engagement actions — click to expand owner, urgency, and full detail" accent="var(--navy)"/>
+              {(info.nextBestAction||[]).map((item:any,i:number)=>{
+                if (typeof item==='string') return <InsightCard key={i} index={i} title={item} accent="var(--navy)"/>
+                return <NBACard key={i} item={item} index={i}/>
+              })}
+            </Slide>
+
+            <Slide id="90day-plan">
+              <SecHeader title="90-Day Action Plan" sub="Week-by-week roadmap with owners, timelines and success metrics" accent="var(--gold)"/>
+              {info.actionPlan90Day&&(<>
+                <NudgeSignalCard text={info.actionPlan90Day.nudgeSignal}/>
+                <FreyrCard text={info.actionPlan90Day.whatThisMeansForFreyr}/>
+                <div style={{ display:'flex', flexDirection:'column', gap:0, marginBottom:24 }}>
+                  {(info.actionPlan90Day.steps||[]).map((step:any,i:number)=>(
+                    <InsightCard key={i} index={i} title={step.action} body={step.detail}
+                      badge={step.weeks?`Weeks ${step.weeks}`:undefined} badgeColor="var(--navy)" accent="var(--gold)"
+                      extra={
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                          <div style={{ padding:'8px 12px', background:'var(--navy-faint)', borderRadius:8 }}>
+                            <div style={{ fontSize:9.5, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:3 }}>OWNER</div>
+                            <div style={{ fontSize:13, color:'var(--navy)', fontWeight:600 }}>{step.owner}</div>
+                          </div>
+                          <div style={{ padding:'8px 12px', background:'rgba(16,185,129,0.07)', borderRadius:8, border:'1px solid rgba(16,185,129,0.2)' }}>
+                            <div style={{ fontSize:9.5, fontWeight:700, color:'#10b981', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:3 }}>SUCCESS METRIC</div>
+                            <div style={{ fontSize:12.5, color:'#065f46', lineHeight:1.45 }}>{step.metric}</div>
+                          </div>
+                        </div>
+                      }
+                    />
+                  ))}
+                </div>
+                {info.actionPlan90Day.successCriteria&&(
+                  <div style={{ background:'rgba(16,185,129,0.05)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:12, padding:'18px 22px' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#10b981', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:14 }}>90-DAY SUCCESS CRITERIA</div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                      {(info.actionPlan90Day.successCriteria||[]).map((c:string,i:number)=>(
+                        <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                          <CheckCircle2 size={16} style={{ color:'#10b981', flexShrink:0, marginTop:1 }}/>
+                          <p style={{ fontSize:14, color:'var(--text-2)', lineHeight:1.65, margin:0 }}>{c}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>)}
+            </Slide>
+
+            <Slide id="big-bets">
+              <SecHeader title="Big Bets" sub="High-priority opportunities — click to expand full facts, Freyr response, and Nudge signals" accent="var(--gold)"/>
+              {(info.bigBets||[]).map((bet:any,i:number)=>{
+                const c=['var(--navy)','var(--gold-muted)','#0891b2','#10b981'][i%4]
+                return <BigBetCard key={i} bet={bet} index={i} accent={c}/>
+              })}
+            </Slide>
+
+            <Slide id="pipeline">
+              <SecHeader title="Pipeline Insights" sub="Asset lifecycle, revenue projections, technology pipeline, and growth services" accent="var(--navy)"/>
+              <PipelineSection info={info} isRevance={isRevance}/>
+            </Slide>
+
+            <Slide id="investment">
+              <SecHeader title="Investment Strategy" sub="Capital allocation priorities and strategic direction" accent="var(--navy)"/>
+              <div style={{ padding:'20px 24px', background:'var(--bg-surface)', borderRadius:12, border:'1px solid var(--border)', marginBottom:20 }}>
+                <p style={{ fontSize:15, color:'var(--text-2)', lineHeight:1.85, margin:0 }}>{info.investmentStrategy}</p>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+                {(isRevance?[
+                  { icon:'🇪🇺', title:'EU Market Entry', body:'EMA Centralised Procedure for DAXXIFY aesthetics and cervical dystonia. Highest commercial priority for Crown PE return on $924M acquisition.' },
+                  { icon:'🧬', title:'Multi-Indication Pipeline', body:'Phase II programmes for upper limb spasticity and plantar fasciitis. NMPA China through Fosun Pharma partnership.' },
+                  { icon:'💼', title:'PE Portfolio Integration', body:'Crown PE vendor rationalisation and cost discipline. H2 2026 vendor review — Freyr must be multi-service before this locks.' },
+                ]:[
+                  { icon:'🚀', title:'H2 2026 Launch Excellence', body:'Three simultaneous launches across US, Japan, China and EU during 4,500-person restructuring — outsourcing mandate.' },
+                  { icon:'🤖', title:'AI & Digital Transformation', body:'JPY 200B+ restructuring. Duprey Transformation Office building FY2027 AI portfolio NOW — not future planning.' },
+                  { icon:'💊', title:'Pipeline Commercialisation', body:'VYVANSE LOE mitigation through pipeline revenue. GI, rare disease, and neuroscience portfolio expansion.' },
+                ]).map((item,i)=>(
+                  <div key={i} style={{ background:'var(--bg-raised)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 18px' }}>
+                    <div style={{ fontSize:22, marginBottom:10 }}>{item.icon}</div>
+                    <div style={{ fontFamily:'Playfair Display,serif', fontSize:15, fontWeight:700, color:'var(--navy)', marginBottom:8 }}>{item.title}</div>
+                    <p style={{ fontSize:13.5, color:'var(--text-2)', lineHeight:1.65, margin:0 }}>{item.body}</p>
+                  </div>
+                ))}
+              </div>
+            </Slide>
+
+            <Slide id="play-areas">
+              <SecHeader title="Play Areas" sub="Core Services, Growth Services, Technology, and Geographies" accent="var(--navy)"/>
+              {info.playAreas&&(<>
+                <NudgeSignalCard text={info.playAreas.nudgeSignal}/>
+                <FreyrCard text={info.playAreas.whatThisMeansForFreyr}/>
+                {[{ l:'5.1 Core Services',d:info.playAreas.coreServices },{ l:'5.2 Growth Services',d:info.playAreas.growthServices }].map(({l,d})=>d&&(
+                  <div key={l} style={{ marginBottom:24 }}>
+                    <div style={{ fontSize:14, fontWeight:700, color:'var(--navy)', fontFamily:'Playfair Display,serif', marginBottom:12 }}>{l}</div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                      {d.map((r:any,i:number)=>(
+                        <InsightCard key={i} index={i} title={r.service} body={r.opportunity}
+                          badge={r.priority} badgeColor={r.priority.includes('URGENT')?'#dc2626':r.priority.includes('HIGH')||r.priority.includes('ACTIVE')?'#d97706':undefined} accent="var(--navy)"
+                          extra={<span style={{ padding:'2px 9px', borderRadius:5, background:'var(--navy-faint)', color:'var(--navy)', fontSize:12, fontWeight:600 }}>{r.revenue}</span>}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <div style={{ marginBottom:24 }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:'var(--navy)', fontFamily:'Playfair Display,serif', marginBottom:12 }}>5.3 Technology Track</div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                    {(info.playAreas.technologyTrack||[]).map((t:any,i:number)=>(
+                      <InsightCard key={i} index={i} title={t.platform} body={t.entryPath}
+                        badge={t.stage} badgeColor={t.stage.includes('URGENT')||t.stage.includes('NEAR')?'#10b981':undefined} accent="#0891b2"
+                        extra={<span style={{ padding:'2px 9px', borderRadius:5, background:'rgba(27,54,93,0.07)', color:'var(--navy)', fontSize:12, fontWeight:600 }}>{t.revenue}</span>}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:700, color:'var(--navy)', fontFamily:'Playfair Display,serif', marginBottom:12 }}>5.4 Geographies</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                    {(info.playAreas.geographies||[]).map((g:any,i:number)=>{
+                      const PC: Record<string,any>={ 'PRIMARY':{bg:'rgba(16,185,129,0.08)',c:'#10b981'}, 'GAP — URGENT':{bg:'rgba(220,38,38,0.08)',c:'#dc2626'}, 'HIGH':{bg:'rgba(217,119,6,0.08)',c:'#d97706'}, 'MEDIUM':{bg:'rgba(27,54,93,0.08)',c:'var(--navy)'} }
+                      const pc=PC[g.priority]||PC['MEDIUM']
+                      return <div key={i} style={{ padding:'14px 16px', background:'var(--bg-surface)', borderRadius:10, border:'1px solid var(--border)' }}>
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                          <div style={{ fontFamily:'Playfair Display,serif', fontSize:14.5, fontWeight:700, color:'var(--navy)' }}>{g.geo}</div>
+                          <span style={{ padding:'2px 9px', borderRadius:4, fontSize:10.5, fontWeight:700, background:pc.bg, color:pc.c, whiteSpace:'nowrap' }}>{g.priority}</span>
+                        </div>
+                        <p style={{ fontSize:12.5, color:'var(--text-2)', lineHeight:1.6, margin:'0 0 8px' }}>{g.programme}</p>
+                        <span style={{ padding:'2px 9px', borderRadius:20, fontSize:11.5, color:'var(--gold-muted)', fontWeight:600, background:'var(--gold-light)' }}>{g.services}</span>
+                      </div>
+                    })}
+                  </div>
+                </div>
+              </>)}
+            </Slide>
+
+            <Slide id="freyr-play">
+              <SecHeader title="Freyr Opportunity Fit" sub="Service line matching, competitive scores, and engagement strategy" accent="var(--gold)"/>
+              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                {freyrPlays.map((play,i)=>{
+                  const [open,setOpen]=useState(false)
+                  return (
+                    <div key={i} style={{ border:'1px solid var(--border)', borderRadius:12, overflow:'hidden', background:'var(--bg-surface)' }}>
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', cursor:'pointer', background:open?'var(--bg-raised)':'transparent' }} onClick={()=>setOpen(o=>!o)}>
+                        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                          <div style={{ width:36, height:36, borderRadius:9, background:`${play.color}18`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>{play.icon}</div>
+                          <div>
+                            <div style={{ fontFamily:'Playfair Display,serif', fontSize:15, fontWeight:700, color:'var(--navy)' }}>{play.title}</div>
+                            <div style={{ fontSize:12.5, color:'var(--text-3)', marginTop:2 }}>{play.subtitle}</div>
+                          </div>
+                        </div>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <span style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700, color:play.color }}>{play.score}%</span>
+                          <ChevronDown size={14} style={{ color:'var(--text-3)', transform:open?'rotate(180deg)':'none', transition:'transform 200ms' }}/>
+                        </div>
+                      </div>
+                      {open&&(
+                        <div style={{ padding:'16px 18px', borderTop:'1px solid var(--border)', animation:'pageIn 200ms ease' }}>
+                          <div style={{ height:6, background:'var(--bg-subtle)', borderRadius:3, overflow:'hidden', marginBottom:16 }}>
+                            <div style={{ height:'100%', width:`${play.score}%`, background:`linear-gradient(90deg,${play.color},${play.color}88)`, borderRadius:3, transition:'width 600ms ease' }}/>
+                          </div>
+                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
+                            {play.details.map((d:any,j:number)=>(
+                              <div key={j} style={{ padding:'10px 14px', background:'var(--bg-raised)', borderRadius:9, border:'1px solid var(--border)' }}>
+                                <div style={{ fontSize:10.5, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>{d.label}</div>
+                                <div style={{ fontSize:14, fontWeight:600, color:'var(--navy)' }}>{d.value}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <ul style={{ margin:'0 0 14px', padding:0, listStyle:'none', display:'flex', flexDirection:'column', gap:6 }}>
+                            {play.bullets.map((b:string,j:number)=>(
+                              <li key={j} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                                <span style={{ width:6, height:6, borderRadius:'50%', background:play.color, flexShrink:0, marginTop:7 }}/>
+                                <span style={{ fontSize:13.5, color:'var(--text-2)', lineHeight:1.7 }}>{b}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          <div style={{ padding:'12px 16px', background:'rgba(212,175,55,0.07)', border:'1.5px solid rgba(212,175,55,0.25)', borderRadius:9 }}>
+                            <div style={{ fontSize:10, fontWeight:700, color:'#b89428', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>FREYR IMPLICATION</div>
+                            <p style={{ fontSize:13.5, color:'#7a5c00', lineHeight:1.65, margin:0, fontWeight:500 }}>{play.implication}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </Slide>
+
+            <Slide id="swot">
+              <SecHeader title="SWOT Analysis" sub="Strengths, Weaknesses, Opportunities and Threats for Freyr at this account" accent="var(--gold)"/>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+                {[
+                  { l:'Strengths', k:'S', c:'#10b981', bg:'rgba(16,185,129,0.05)', b:'rgba(16,185,129,0.2)', i:'💪' },
+                  { l:'Weaknesses', k:'W', c:'#dc2626', bg:'rgba(220,38,38,0.04)', b:'rgba(220,38,38,0.15)', i:'⚠️' },
+                  { l:'Opportunities', k:'O', c:'#b89428', bg:'rgba(212,175,55,0.06)', b:'rgba(212,175,55,0.2)', i:'🚀' },
+                  { l:'Threats', k:'T', c:'var(--navy)', bg:'var(--navy-faint)', b:'rgba(27,54,93,0.15)', i:'🛡️' },
+                ].map(({l,k,c,bg,b,i})=>(
+                  <div key={k} style={{ background:bg, border:`1px solid ${b}`, borderRadius:12, padding:'18px 20px' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}><span style={{ fontSize:18 }}>{i}</span><div style={{ fontSize:15, fontWeight:700, color:c, fontFamily:'Playfair Display,serif' }}>{l}</div></div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                      {((info.swot as any)?.[k]||[]).map((item:string,idx:number)=>(
+                        <div key={idx} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                          <span style={{ color:c, fontSize:14, flexShrink:0, marginTop:1 }}>•</span>
+                          <p style={{ fontSize:13.5, color:'var(--text-2)', lineHeight:1.65, margin:0 }}>{item}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Slide>
+
+            <Slide id="news">
+              <SecHeader title="News Intelligence" sub="Internal company updates and external industry developments" accent="var(--navy)"/>
+              <div style={{ display:'flex', borderBottom:'2px solid var(--border)', marginBottom:20 }}>
+                {(['internal','external'] as const).map(t=>(
+                  <button key={t} onClick={()=>setNewsTab(t)} style={{ padding:'10px 18px', background:'none', border:'none', borderBottom:newsTab===t?'2px solid var(--navy)':'2px solid transparent', marginBottom:-2, cursor:'pointer', fontSize:14, fontWeight:newsTab===t?700:400, color:newsTab===t?'var(--navy)':'var(--text-3)', transition:'all 160ms' }}>
+                    {t==='internal'?'Freyr Internal News':'Industry & Account News'}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                {news.map(item=>(
+                  <div key={item.id} onClick={()=>setSelectedArticle(item)} style={{ background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 18px', cursor:'pointer' }} onMouseEnter={e=>e.currentTarget.style.boxShadow='0 6px 24px rgba(27,54,93,0.1)'} onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
+                    <div style={{ fontSize:11, fontWeight:700, color:'var(--gold-muted)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>{item.date}</div>
+                    <div style={{ fontFamily:'Playfair Display,serif', fontSize:14.5, fontWeight:600, color:'var(--navy)', lineHeight:1.35, marginBottom:8 }}>{item.title}</div>
+                    <p style={{ fontSize:13, color:'var(--text-3)', lineHeight:1.55, margin:0 }}>{item.body.slice(0,140)}...</p>
+                    <div style={{ marginTop:10, fontSize:12, color:'var(--gold-muted)', fontWeight:600, display:'flex', alignItems:'center', gap:4 }}>Read full story <ChevronRight size={11}/></div>
+                  </div>
+                ))}
+              </div>
+              {selectedArticle&&<NewsModal article={selectedArticle} onClose={()=>setSelectedArticle(null)}/>}
+            </Slide>
+
+            <Slide id="notes">
+              <SecHeader title="Notes & Download" sub="Account-level notes and full dossier export" accent="var(--gold)"/>
+              <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--navy)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>ACCOUNT NOTES</div>
+                  <textarea className="input textarea-expand" placeholder="Add notes about this account..." value={notes} onChange={e=>setNotes(e.target.value)} rows={6} style={{ marginBottom:10, fontSize:14.5 }}/>
+                  <button className="btn btn-navy btn-sm">Save Notes</button>
+                </div>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--navy)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>COMPANY DOSSIER</div>
+                  <div style={{ padding:20, background:'var(--navy-faint)', borderRadius:12, border:'1px solid rgba(27,54,93,0.12)', textAlign:'center' }}>
+                    <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
+                    <div style={{ fontFamily:'Playfair Display,serif', fontSize:15, fontWeight:700, color:'var(--navy)', marginBottom:6 }}>Account Planning Dossier</div>
+                    <p style={{ fontSize:13, color:'var(--text-3)', marginBottom:14, lineHeight:1.5 }}>Full strategic account plan with versioning, big bets, and executive briefing.</p>
+                    <button className="btn btn-navy" style={{ width:'100%', justifyContent:'center', gap:6, fontSize:13 }} onClick={()=>nav('/accounts/planning')}>
+                      Open Account Plan <ArrowRight size={13}/>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Slide>
+
+          </div>
+        </div>
+      </div>
+    </Ctx.Provider>
+  )
+}
