@@ -926,3 +926,37 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   line-height: 1.8 !important;
 }
 
+
+/* ─── NUDGE LOGO DOT ANIMATION ──────────────────────────────────────────────── */
+@keyframes nudge-dot-wave {
+  0%   { opacity: 0.12; }
+  50%  { opacity: 0.95; }
+  100% { opacity: 0.12; }
+}
+.ndot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #D4AF37;
+  display: block;
+  animation: nudge-dot-wave 2.2s ease-in-out infinite;
+}
+
+/* ─── SIDEBAR LOGO SVG ANIMATION ─────────────────────────────────────────── */
+@keyframes left-panel-icon-effects {
+  0%   { opacity: 0.4;  transform: translateX(-4px); filter: drop-shadow(0 0 2px rgba(212,175,55,0.2)); }
+  30%  { opacity: 1;    transform: translateX(0px);  filter: drop-shadow(0 0 10px rgba(212,175,55,0.9)); }
+  60%  { opacity: 1;    transform: translateX(4px);  filter: drop-shadow(0 0 10px rgba(212,175,55,0.9)); }
+  100% { opacity: 0.4;  transform: translateX(-4px); filter: drop-shadow(0 0 2px rgba(212,175,55,0.2)); }
+}
+
+.welcome-sidebar-logo-svg {
+  width: 3rem;
+  height: 3rem;
+  margin-left: 0px;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+  animation: 3.5s ease-in-out infinite left-panel-icon-effects;
+  color: #d4af37;
+  overflow: visible;
+}
