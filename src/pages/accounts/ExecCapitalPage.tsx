@@ -543,7 +543,7 @@ export default function ExecCapitalPage() {
                   {[
                     { label:'Persona Quadrant',    value:exec.personaQuadrant,                                highlight:true },
                     { label:'Behavioural Trait',   value:exec.behaviouralTraits?.join(' · ') },
-                    { label:'Indegene Mapping',    value:String(exec.indegeneMapping),   numeric:true },
+                    { label:'Freyr Mapping',    value:String(exec.freyrMapping),   numeric:true },
                     { label:'Network Connections', value:String(exec.networkConnections),numeric:true },
                     { label:'Key Conferences',     value:exec.conferences?.[0]||'—' },
                   ].map(col=>(

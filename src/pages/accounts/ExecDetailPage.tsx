@@ -27,8 +27,9 @@ const CATEGORIES = [
   'One Minute Summary','Interests And Hobbies','Company Role',
   'Media Appearances','Social Activity','Key Traits','Sales Insights',
   'Conference Intelligence','Game Time Tags','Memberships And Affiliations',
-  'Awards And Recognitions','Download Profile Link','Notes',
+  'Awards And Recognitions','Notes',
   'Freyr Selling Point','Action Plan','Relationship Score','Tasks',
+  'Download Profile Link',
 ]
 
 // ─── Shared UI primitives ─────────────────────────────────────────────────
@@ -1129,7 +1130,7 @@ function generateExecProfileHtml(exec: any): string {
     s.dontsWhenEngaging ? field("Don'ts When Engaging", s.dontsWhenEngaging) : '',
     field('Leadership Style', s.leadershipStyle),
     field('Personal Motivation', s.personalMotivation),
-    field('Freyr Selling Point', s.freyrSellingPoint || s.indegeneSellingPoint || ''),
+    field('Freyr Selling Point', s.freyrSellingPoint || s.freyrSellingPoint || ''),
   ].join(''))}
 
   <!-- Interests & Hobbies -->

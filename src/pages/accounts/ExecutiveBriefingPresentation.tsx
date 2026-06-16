@@ -273,7 +273,7 @@ export default function ExecutiveBriefingPresentation() {
         <Slide id="freyr">
           <SectionHeader title="Freyr Play Areas" sub="Service line matching, competitive positioning, and engagement strategy" accent={goldM}/>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:48 }}>
-            {info.indegenePlays.map((item:string,i:number) => (
+            {info.freyrPlays.map((item:string,i:number) => (
               <div key={i} style={{ background:'#fff', border:`1px solid rgba(27,54,93,0.1)`, borderRadius:14, padding:'18px 20px', boxShadow:'0 2px 10px rgba(27,54,93,0.05)' }}>
                 <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
                   <div style={{ width:7, height:7, borderRadius:'50%', background:gold, flexShrink:0, marginTop:7, boxShadow:`0 0 8px ${gold}55` }}/>

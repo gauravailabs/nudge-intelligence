@@ -1401,10 +1401,10 @@ export default function AccountInfoPage() {
         </div>
 
         {/* ─ Two-column layout */}
-        <div style={{ display:'grid', gridTemplateColumns:'270px 1fr', gap:16, alignItems:'start' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'270px 1fr', gap:16, alignItems:'start', minHeight:'calc(125vh - 200px)' }}>
 
           {/* Left nav — layered accordion */}
-          <div className="card" style={{ width:270, minWidth:270, flexShrink:0, padding:0, position:'sticky', top:16, boxShadow:'var(--shadow-xs)', maxHeight:'calc(100vh - 40px)', overflowY:'auto', overflowX:'hidden' }}>
+          <div className="card" style={{ width:270, minWidth:270, flexShrink:0, padding:0, position:'sticky', top:16, boxShadow:'var(--shadow-xs)', maxHeight:'calc(125vh - 60px)', overflowY:'auto', overflowX:'hidden' }}>
             {/* Account brief shortcut */}
             <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>

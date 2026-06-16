@@ -109,7 +109,7 @@ export default function Sidebar() {
       </div>
 
       {/* Footer */}
-      <div style={{ padding:'12px 20px', borderTop:'1px solid rgba(212,175,55,0.12)', fontSize:16, color:'rgba(255,255,255,0.22)', fontFamily:'Source Sans 3, sans-serif' }}>
+      <div style={{ padding:'10px 16px', borderTop:'1px solid rgba(212,175,55,0.12)', fontSize:10, color:'rgba(255,255,255,0.22)', fontFamily:'Source Sans 3, sans-serif', whiteSpace:'nowrap', flexShrink:0 }}>
         © 2026 The Nudge Intelligence
       </div>
     </div>
