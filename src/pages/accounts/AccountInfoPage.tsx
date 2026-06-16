@@ -660,31 +660,45 @@ function SalesIntel({ accountId }: { accountId:string }) {
 }
 
 // ─── SIGNAL DETAIL MODAL ─────────────────────────────────────────────────────
-function SignalModal({ signal, onClose }: { signal:{ name:string; source:string; evidence:string; reference:string; implication:string }|null; onClose:()=>void }) {
+function SignalModal({ signal, onClose }: { signal:{ name:string; source:string; evidence:string; reference:string; references?:{label:string;url:string}[]; implication:string }|null; onClose:()=>void }) {
   if (!signal) return null
   return (
     <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.48)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, animation:'fadeIn 160ms ease' }}>
-      <div onClick={e=>e.stopPropagation()} style={{ width:660, maxWidth:'92vw', background:'#fff', borderRadius:14, overflow:'hidden', animation:'popIn 180ms ease-out', boxShadow:'0 24px 64px rgba(0,0,0,0.28)' }}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:680, maxWidth:'92vw', background:'#fff', borderRadius:14, overflow:'hidden', animation:'popIn 180ms ease-out', boxShadow:'0 24px 64px rgba(0,0,0,0.28)' }}>
         <div style={{ borderTop:'5px solid #D4AF37', padding:'22px 26px', position:'relative' }}>
           <button onClick={onClose} style={{ position:'absolute', right:20, top:16, background:'none', border:'none', cursor:'pointer', fontSize:26, color:'#888', lineHeight:1 }}>×</button>
           <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.12em', color:'#7E8794', textTransform:'uppercase', marginBottom:6 }}>SIGNAL DETAIL</div>
-          <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, color:'#1B365D', lineHeight:1.2 }}>{signal.name}</div>
+          <div style={{ fontFamily:'Playfair Display,serif', fontSize:24, fontWeight:700, color:'#1B365D', lineHeight:1.2 }}>{signal.name}</div>
         </div>
         <div style={{ padding:'16px 26px', borderTop:'1px solid #EDF1F5' }}>
           <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', color:'#7E8794', textTransform:'uppercase', marginBottom:6 }}>SOURCE</div>
-          <div style={{ fontSize:15, color:'#1B365D', lineHeight:1.55 }}>{signal.source}</div>
+          <div style={{ fontSize:14, color:'#1B365D', lineHeight:1.55 }}>{signal.source}</div>
         </div>
         <div style={{ padding:'16px 26px', borderTop:'1px solid #EDF1F5' }}>
           <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', color:'#7E8794', textTransform:'uppercase', marginBottom:6 }}>EVIDENCE</div>
-          <div style={{ fontSize:15, color:'#1B365D', lineHeight:1.55 }}>{signal.evidence}</div>
+          <div style={{ fontSize:14, color:'#1B365D', lineHeight:1.65 }}>{signal.evidence}</div>
         </div>
         <div style={{ padding:'16px 26px', borderTop:'1px solid #EDF1F5' }}>
-          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', color:'#7E8794', textTransform:'uppercase', marginBottom:6 }}>REFERENCE</div>
-          <div style={{ fontSize:14, color:'#555', lineHeight:1.55 }}>{signal.reference}</div>
+          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', color:'#7E8794', textTransform:'uppercase', marginBottom:8 }}>REFERENCES</div>
+          {signal.references && signal.references.length > 0 ? (
+            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              {signal.references.map((ref, i) => (
+                <a key={i} href={ref.url} target="_blank" rel="noopener noreferrer"
+                  style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:13, color:'#0A66C2', textDecoration:'none', lineHeight:1.45, fontFamily:'Source Sans Pro,sans-serif' }}
+                  onMouseEnter={e=>e.currentTarget.style.textDecoration='underline'}
+                  onMouseLeave={e=>e.currentTarget.style.textDecoration='none'}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  {ref.label}
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize:13, color:'#555', lineHeight:1.55 }}>{signal.reference}</div>
+          )}
         </div>
         <div style={{ margin:'0 20px 20px', background:'#1B365D', borderRadius:10, padding:'18px 22px' }}>
           <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.12em', color:'#D4AF37', textTransform:'uppercase', marginBottom:8 }}>FREYR IMPLICATION</div>
-          <div style={{ fontSize:15, color:'rgba(255,255,255,0.9)', lineHeight:1.65 }}>{signal.implication}</div>
+          <div style={{ fontSize:14, color:'rgba(255,255,255,0.92)', lineHeight:1.7 }}>{signal.implication}</div>
         </div>
       </div>
     </div>
@@ -693,81 +707,403 @@ function SignalModal({ signal, onClose }: { signal:{ name:string; source:string;
 
 // ─── COMPETITIVE INTELLIGENCE SECTION ────────────────────────────────────────
 function CompetitiveIntel({ accountId }: { accountId:string }) {
-  const [activeModal, setActiveModal] = useState<{ name:string; source:string; evidence:string; reference:string; implication:string }|null>(null)
+  const [activeModal, setActiveModal] = useState<{ name:string; source:string; evidence:string; reference:string; references?:{label:string;url:string}[]; implication:string }|null>(null)
   const isR = accountId==='revance'
 
   const cards = isR ? [
     {
-      num:1, title:'Botox Market Dominance Pressure', body:'AbbVie\'s Botox remains the category leader with overwhelming physician loyalty, patient awareness, training infrastructure, and bundled aesthetics offerings. Daxxify\'s longer duration is differentiated, but market adoption faces resistance.',
+      num:1,
+      title:"IQVIA AI Platform Encroachment on Regulatory Services",
+      body:"IQVIA, ranked as a Leader in the Everest Group PEAK Matrix® 2024 alongside Freyr, has positioned its 'Healthcare-grade AI™' framework and Connected Intelligence™ platform aggressively in the regulatory compliance and pharmacovigilance space. In January 2025, IQVIA announced a strategic collaboration with NVIDIA to develop custom AI workflows for life sciences — directly competing with Freyr's Freya Fusion AI platform for Revance's post-acquisition regulatory needs.",
       signals:[
-        { name:'Market Share Leadership', source:'AbbVie earnings commentary and market reports', evidence:'Botox generated over $4.4B in U.S. sales while Daxxify remains significantly smaller. Physicians often default to Botox due to familiarity and patient demand.', reference:'AbbVie Earnings / BioSpace Market Reports', implication:'Revance must strengthen competitive positioning through differentiated value messaging, reimbursement strategy support, and evidence generation demonstrating long-term economic value.' },
-        { name:'Physician Loyalty Programs', source:"Allergan's loyalty and bundled purchasing programs encourage physician spend consolidation", evidence:'Practices receive incentives when purchasing multiple products across Botox, Juvederm, and other Allergan offerings.', reference:"Partner Privileges physician loyalty framework (Clarivate)", implication:'Opportunity to support Revance with competitive intelligence, customer retention analytics, and ecosystem differentiation strategies.' },
-        { name:'Brand Recognition', source:'Industry aesthetics reports and physician surveys', evidence:'Botox remains the most recognized neurotoxin brand. Patients frequently request Botox by name rather than the treatment category.', reference:'iData Research Market Analysis', implication:'Increased investment needed in education, digital engagement, and awareness programs to establish Daxxify as a premium alternative.' },
-        { name:'Pricing Pressure', source:'Crown acquisition analysis and analyst commentary', evidence:'Revance reduced Daxxify pricing after premium positioning slowed adoption. Market adoption improved after price adjustments.', reference:'Reuters / Crown Acquisition Reports', implication:'Commercial strategy optimization and competitive pricing intelligence become critical to market expansion.' },
+        {
+          name:'IQVIA Healthcare-grade AI™ Threat',
+          source:'IQVIA Strategic Communications & Everest Group PEAK Matrix® 2024',
+          evidence:"IQVIA, ranked as a co-Leader with Freyr in the Everest Group PEAK Matrix® 2024, has positioned its Connected Intelligence™ platform aggressively in regulatory compliance and PV. In January 2025, IQVIA announced a strategic collaboration with NVIDIA to develop custom foundation models and agentic AI workflows for life sciences clients — directly competing with Freyr's Freya Fusion AI platform.",
+          reference:'Everest Group PEAK Matrix® 2024; IQVIA AI collaboration with NVIDIA (2025)',
+          references:[
+            { label:'Everest Group PEAK Matrix® 2024 — IQVIA recognized as Leader', url:'https://www.iqvia.com/-/media/iqvia/pdfs/library/insight-brief/everest_group-life_sciences_regulatory_and_medical_affairs_operations_peak_matrix_assessment_2.pdf' },
+            { label:'IQVIA AI collaboration with NVIDIA (2025)', url:'https://www.iqvia.com/blogs/2025/01/ai-trends-in-pharma-enhancing-drug-safety-and-regulatory-compliance-for-2025' },
+            { label:'IQVIA Safety & Regulatory Compliance Overview', url:'https://www.iqvia.com/solutions/safety-regulatory-compliance' },
+          ],
+          implication:"Freyr must proactively demonstrate the superiority of its Freya Fusion platform over IQVIA's Healthcare-grade AI™, especially on cost-efficiency metrics meaningful to Crown Laboratories' PE-driven governance of Revance. Technology differentiation and integration speed should be primary selling points.",
+        },
+        {
+          name:'NVIDIA Partnership & Agentic AI',
+          source:'IQVIA-NVIDIA Strategic Collaboration Announcement, January 2025',
+          evidence:'IQVIA and NVIDIA partnered in January 2025 to build custom foundation models and agentic AI workflows for pharma regulatory and safety functions — a direct competitive escalation against Freyr\'s Freya Fusion in the AI-enabled regulatory space.',
+          reference:'IQVIA AI Trends in Pharma Blog, January 2025',
+          references:[
+            { label:'IQVIA AI Trends in Pharma — Enhancing Drug Safety & Regulatory Compliance 2025', url:'https://www.iqvia.com/blogs/2025/01/ai-trends-in-pharma-enhancing-drug-safety-and-regulatory-compliance-for-2025' },
+          ],
+          implication:'Freyr should emphasise the regulatory-native architecture of Freya Fusion — built on 15+ years of regulatory delivery data — vs. IQVIA\'s general-purpose foundation models repurposed for pharma.',
+        },
+        {
+          name:'PE Cost Pressure Alignment Risk',
+          source:'Crown Laboratories PE governance model & IQVIA enterprise bundling',
+          evidence:'Crown Laboratories\' PE governance priorities — cost efficiency and technology-driven regulatory management — align closely with IQVIA\'s integrated platform pitch. IQVIA can offer a single-vendor, data-to-submission workflow that reduces vendor management overhead, making it a natural fit for Crown\'s cost discipline mandate.',
+          reference:'Crown Laboratories acquisition analysis; IQVIA Safety & Regulatory Compliance Platform',
+          references:[
+            { label:'IQVIA Safety & Regulatory Compliance Platform', url:'https://www.iqvia.com/solutions/safety-regulatory-compliance' },
+          ],
+          implication:'Freyr must present a concrete vendor consolidation ROI model to Moiz and Leffler before IQVIA does — framing Freyr Full-Service as the cost-efficient, pure-play regulatory alternative to IQVIA\'s broad enterprise platform.',
+        },
+        {
+          name:'Everest Group Co-Leader Positioning',
+          source:'Everest Group Life Sciences Regulatory and Medical Affairs Operations PEAK Matrix® Assessment 2024',
+          evidence:'IQVIA and Freyr are both recognized as Leaders in the 2024 Everest Group PEAK Matrix® for Life Sciences Regulatory and Medical Affairs Operations. This co-Leader positioning means Revance evaluators will see IQVIA as a credible, peer-level alternative to Freyr in any vendor review.',
+          reference:'Everest Group PEAK Matrix® Assessment 2024',
+          references:[
+            { label:'Everest Group PEAK Matrix® Assessment 2024', url:'https://www.iqvia.com/-/media/iqvia/pdfs/library/insight-brief/everest_group-life_sciences_regulatory_and_medical_affairs_operations_peak_matrix_assessment_2.pdf' },
+          ],
+          implication:'Freyr must differentiate beyond the Everest Group ranking — leading with DAXXIFY-specific regulatory track record, EU/EMA affiliate network depth, and Freya Fusion\'s regulatory-native AI architecture.',
+        },
       ]
     },
     {
-      num:2, title:'Emerging Challenger Competition (Evolus Jeuveau)', body:'Evolus continues gaining traction through aggressive commercial execution, focused aesthetics branding, and expansion beyond Jeuveau. Growth trajectory positions Evolus as one of the fastest-growing neurotoxin challengers.',
+      num:2,
+      title:"Parexel's Regulatory Outsourcing Scale & FDA Expertise",
+      body:"Parexel fields a team of 1,300+ regulatory specialists including over 100 former regulators and HTA assessors. Its Regulatory & Access Consulting Organization is positioned to compete for Revance's regulatory portfolio — especially DAXXIFY's critical EU/EMA approval gap and cervical dystonia post-marketing obligations. Parexel won the Scrip Award for Best CRO Full-Service Provider in 2025.",
       signals:[
-        { name:'Rapid Commercial Growth', source:'Evolus investor guidance and preliminary earnings', evidence:'Jeuveau continues increasing market penetration. Growth exceeds many traditional competitors.', reference:'Evolus Q4 2024 Preliminary Earnings / Investors.com', implication:'Revance must monitor emerging competitor adoption trends and physician migration patterns.' },
-        { name:'Younger Consumer Targeting', source:'Market positioning analysis and consumer branding studies', evidence:'Jeuveau is marketed heavily toward aesthetics-focused younger demographics. Consumer branding differs significantly from traditional Botox positioning.', reference:'Clarivate Market Analysis / Allure Industry Reports', implication:'Opportunity to build segmentation-based commercial and messaging strategies.' },
-        { name:'Product Portfolio Expansion', source:'2025 pipeline expansion announcements', evidence:'Evolus is expanding beyond a single-product company. Injectable fillers and complementary aesthetics products are being introduced.', reference:'Evolus Pipeline 2025 Announcements', implication:'Revance may face increasing bundled-solution competition similar to Allergan.' },
-        { name:'Competitive Promotion', source:'Industry competitive landscape assessments', evidence:'High commercial investment in physician acquisition and aesthetics marketing. Aggressive practice conversion campaigns observed.', reference:'Clarivate Competitive Intelligence Reports', implication:'Requires stronger physician retention and customer success initiatives.' },
+        {
+          name:'1,300+ Ex-Regulator Team',
+          source:'Parexel Global Regulatory Submissions & Outsourcing; Contract Pharma',
+          evidence:'Parexel, which began as a regulatory consulting firm 40+ years ago, now fields 1,300+ regulatory specialists including 100+ former regulators and HTA assessors. Its Regulatory & Access Consulting Organization is positioned for end-to-end regulatory support — directly competing for DAXXIFY\'s EU/EMA approval gap and cervical dystonia post-marketing obligations.',
+          reference:'Parexel Global Regulatory Submissions; Parexel Scrip Award 2025',
+          references:[
+            { label:'Parexel Global Regulatory Submissions & Outsourcing', url:'https://www.parexel.com/solutions/approval-and-access/global-regulatory-submissions-and-outsourcing' },
+            { label:'Parexel — Navigating FDA Changes 2025', url:'https://www.parexel.com/solutions/early-development-and-innovation/regulatory-strategy/navigating-fda-changes-eight-actions-for-sponsors' },
+            { label:'Parexel Company Experts & Awards', url:'https://www.parexel.com/company/our-experts' },
+          ],
+          implication:"Revance's unresolved EU/EMA regulatory gap for DAXXIFY is a critical vulnerability. Parexel's large bench of former regulators and established EU/EMA relationships present a direct threat to Freyr's engagement scope. Freyr should proactively develop a concrete EU/EMA pathway strategy for DAXXIFY and present it before Parexel does.",
+        },
+        {
+          name:'Scrip Award — Best CRO 2025',
+          source:'Scrip Awards 2025',
+          evidence:'Parexel won the Scrip Award for "Best Contract Research Organization, Full-Service Provider" in 2025 — reinforcing its market credibility and brand authority in the CRO and regulatory consulting space when pitching to accounts like Revance.',
+          reference:'Parexel Scrip Award 2025',
+          references:[
+            { label:'Parexel Company & Award Recognition', url:'https://www.parexel.com/company/our-experts' },
+          ],
+          implication:"Freyr should counter with Freyr-specific DAXXIFY regulatory track record and EU affiliate network depth — not general award recognition.",
+        },
+        {
+          name:'EU/EMA Competitive Pitch Risk',
+          source:"Parexel's EU regulatory expertise and published FDA/EMA guidance",
+          evidence:"Parexel's 2025 published guidance on navigating FDA changes signals aggressive outreach to specialty pharma clients like Revance. With former EMA regulators on staff and a published EU HTA advisory track record, Parexel is well-positioned to pitch DAXXIFY's EU/EMA regulatory gap as a core entry point.",
+          reference:"Parexel Navigating FDA Changes 2025",
+          references:[
+            { label:'Parexel — Navigating FDA Changes 2025', url:'https://www.parexel.com/solutions/early-development-and-innovation/regulatory-strategy/navigating-fda-changes-eight-actions-for-sponsors' },
+          ],
+          implication:"Freyr must present a credible, costed EU/EMA pathway strategy for DAXXIFY — including timeline, affiliate network coverage, and EMA dossier authoring capability — before Parexel occupies this strategic advisory position.",
+        },
+        {
+          name:'Healthcare Regulatory Outsourcing Market Leader',
+          source:'Mordor Intelligence Healthcare Regulatory Outsourcing Market 2026',
+          evidence:'Parexel is identified as a top provider in the Mordor Intelligence 2026 report on healthcare regulatory outsourcing (10.19% CAGR through 2031), particularly in rare disease and specialty pharma regulatory submissions — overlapping with DAXXIFY\'s therapeutic expansion pipeline.',
+          reference:'Mordor Intelligence Healthcare Regulatory Outsourcing Market 2026',
+          references:[
+            { label:'Mordor Intelligence Healthcare Regulatory Outsourcing Market 2026', url:'https://www.mordorintelligence.com/industry-reports/healthcare-regulatory-outsourcing-affairs-market' },
+          ],
+          implication:"Freyr should proactively brief Revance's regulatory team on DAXXIFY's cervical dystonia lifecycle and Phase II expansion regulatory complexity — positioning Freyr as the specialist with deeper DAXXIFY-specific knowledge than any generalist CRO.",
+        },
       ]
     },
     {
-      num:3, title:'Differentiation Erosion Risk', body:"Daxxify's primary differentiator is longer-lasting duration. However, competitors continue improving formulations and physician education, creating risk that duration alone may not sustain competitive advantage.",
+      num:3,
+      title:"Cencora/PharmaLex Bundle Strategy Targeting Specialty Pharma",
+      body:"Cencora (Fortune 500 #11, $200B+ annual revenue) completed its acquisition of PharmaLex in January 2023 — creating an end-to-end bundle of regulatory affairs, pharmacovigilance, scientific consulting, quality management, and global drug distribution. This integrated model is particularly attractive to Crown Laboratories' PE governance model which prioritises vendor consolidation.",
       signals:[
-        { name:'Longevity Competition', source:'FDA-supported studies and market analyses', evidence:'Daxxify results often last 6+ months versus traditional 3–4 month intervals. Competitors are now narrowing this gap.', reference:'Wikipedia / Glamour Industry Reports', implication:'Revance should continuously generate evidence proving economic and clinical value beyond duration claims.' },
-        { name:'Clinical Comparison Discussions', source:'Industry educational content and physician discussions', evidence:'Increasing comparisons among Botox, Dysport, Xeomin, Jeuveau, and Daxxify. Providers evaluate onset, spread, duration, and patient outcomes.', reference:'Allure Medical Review Panels', implication:'Need for stronger comparative evidence packages and scientific communication.' },
-        { name:'Physician Preference Variability', source:'Market adoption pattern studies', evidence:'Injectors often maintain product preferences based on experience. Switching barriers remain significant.', reference:'Clarivate Physician Preference Studies', implication:'Focus on physician education, training support, and onboarding programs.' },
-        { name:'Market Education Gap', source:'Market share and adoption analyses', evidence:'Many consumers still lack awareness of Daxxify versus Botox. Consumer demand frequently begins with Botox requests.', reference:'Reuters / BioSpace Consumer Adoption Reports', implication:'Opportunity for patient education and evidence-based engagement programs.' },
+        {
+          name:'Regulatory + Distribution Bundle',
+          source:"Cencora/AmerisourceBergen acquisition of PharmaLex (January 2023); Cencora Q4 FY2025 earnings",
+          evidence:"Cencora (formerly AmerisourceBergen, Fortune 500 #11, $200B+ annual revenue) completed its acquisition of PharmaLex in January 2023 — giving it an end-to-end bundle of regulatory affairs, PV, scientific consulting, quality management, and global drug distribution. This integrated model is particularly attractive to recently acquired companies like Revance, where Crown's PE governance prioritises vendor consolidation and cost efficiency.",
+          reference:'Cencora acquisition of PharmaLex; Cencora Q4 FY2025 earnings and strategy',
+          references:[
+            { label:'Cencora Acquisition of PharmaLex (January 2023)', url:'https://investor.cencora.com/news/news-details/2023/AmerisourceBergen-Completes-Acquisition-of-PharmaLex/default.aspx' },
+            { label:'Cencora Q4 FY2025 Earnings & Strategy', url:'https://www.bioxconomy.com/access-and-channel/cencora-reports-strong-q4-2025-earnings-expands-specialty-healthcare-with-rca-acquisition-and-1b-investment' },
+            { label:'Cencora Pharma Solutions Overview', url:'https://www.cencora.com/our-capabilities/commercialization-support' },
+          ],
+          implication:"Cencora can offer Revance/Crown Laboratories a regulatory-plus-distribution bundle that Freyr cannot match alone. Freyr's counter-strategy should emphasise pure-play regulatory depth and technology-driven efficiency (cost savings of 30%+) vs. Cencora's generalist bundled offering.",
+        },
+        {
+          name:'Specialty Care Expansion ($4.4B RCA)',
+          source:'Cencora $4.4B acquisition of Retina Consultants of America, 2025',
+          evidence:"Cencora's $4.4B acquisition of Retina Consultants of America in 2025 signals escalating investment in specialty pharma services that directly overlap with Revance's therapeutic and aesthetic product lines.",
+          reference:"Cencora Q4 FY2025 Earnings",
+          references:[
+            { label:'Cencora Q4 FY2025 Earnings & RCA Acquisition', url:'https://www.bioxconomy.com/access-and-channel/cencora-reports-strong-q4-2025-earnings-expands-specialty-healthcare-with-rca-acquisition-and-1b-investment' },
+          ],
+          implication:"Freyr should emphasise regulatory depth and specialisation in neurotoxin therapeutics — areas where Cencora's generalist distribution-led model lacks the technical depth Revance needs for DAXXIFY's complex regulatory lifecycle.",
+        },
+        {
+          name:'PE Vendor Consolidation Alignment',
+          source:"Crown Laboratories' PE governance model and vendor rationalisation mandate",
+          evidence:"Crown PE governance requires vendor rationalisation — 'one vendor does everything' is an appealing pitch to Moiz. Cencora's ability to bundle regulatory, PV, distribution, and commercialisation support under a single commercial agreement could position it as the preferred consolidated partner.",
+          reference:"Cencora Pharma Solutions Overview",
+          references:[
+            { label:'Cencora Pharma Solutions Overview', url:'https://www.cencora.com/our-capabilities/commercialization-support' },
+          ],
+          implication:"Freyr must present a Full-Service Model commercial proposal with a vendor consolidation ROI model — one Freyr contract replacing multiple regulatory vendors — before Cencora presents its bundle to Crown Laboratories.",
+        },
+        {
+          name:'Fortune 500 Scale Credibility',
+          source:'Cencora Fortune 500 ranking #11',
+          evidence:"Cencora's Fortune 500 #11 ranking and $200B+ annual revenue gives it instant credibility in Crown PE governance vendor reviews, where financial stability and scale are evaluated alongside service capability.",
+          reference:"Cencora Investor Relations",
+          references:[
+            { label:'Cencora Investor Relations', url:'https://investor.cencora.com' },
+          ],
+          implication:"Freyr should counter with technology differentiation and regulatory specialisation — demonstrating Freyr's 850+ EU in-country affiliate network and Freya Fusion platform as capabilities no generalist distributor can match.",
+        },
       ]
     },
     {
-      num:4, title:'Regulatory, Legal & Competitive Expansion Threat', body:'Revance faces increasing legal, patent, and market pressures while additional neurotoxins enter the U.S. aesthetics market. New entrants and IP disputes may impact growth trajectory.',
+      num:4,
+      title:"ProPharma Group's Biologics Regulatory Expansion",
+      body:"ProPharma Group, self-described as 'the world's leading regulatory sciences consulting firm,' won the Clinical Trials Excellence Award 2024 and expanded with a new Hyderabad office in December 2025 — directly overlapping with Freyr's India-based operations. Its services map directly onto DAXXIFY's regulatory lifecycle needs, and its focus on biologics and specialty drugs makes it a credible competitor for the Revance account.",
       signals:[
-        { name:'Patent Litigation Risk', source:'Reuters litigation reporting', evidence:'Allergan secured a favorable patent verdict related to Daxxify manufacturing. Significant damages awarded in patent litigation.', reference:'Reuters Patent Trial Coverage 2025', implication:'Legal risk management, regulatory compliance support, and manufacturing IP strategy become critical priorities.' },
-        { name:'New Entrant Pressure', source:'Market landscape assessments', evidence:'Additional neurotoxin products gaining FDA clearance. Market fragmentation increasing competition for provider attention.', reference:'Industry Competitive Landscape Reports', implication:'Revance needs differentiated positioning strategy and accelerated market expansion support.' },
-        { name:'Market Fragmentation', source:'Aesthetics market analysis reports', evidence:'Multiple neurotoxin products now available with overlapping indications, creating pricing and positioning pressure.', reference:'iData Research Market Intelligence', implication:'Commercial content strategy and provider segmentation become key differentiators.' },
-        { name:'Acquisition Integration', source:'Crown Labs acquisition analysis', evidence:'PE-backed acquisition creates integration complexity and vendor rationalization pressure across all commercial operations.', reference:'Reuters Crown $924M Acquisition Coverage', implication:'Vendor consolidation window: position Freyr as full-service partner before H2 2026 review locks the roster.' },
+        {
+          name:'Hyderabad Office — India Cost Threat',
+          source:'ProPharma Group press releases 2024-2025; CBInsights',
+          evidence:"ProPharma's December 2025 opening of a Hyderabad office directly overlaps with Freyr's India-based delivery model and cost base. This gives ProPharma a low-cost, high-expertise alternative for DAXXIFY's regulatory operations at comparable India delivery economics.",
+          reference:'ProPharma Hyderabad expansion (Dec 2025)',
+          references:[
+            { label:'ProPharma Group — CBInsights Company Profile', url:'https://www.cbinsights.com/company/propharma-group' },
+            { label:'ProPharma Regulatory Affairs Services', url:'https://www.propharmagroup.com/regulatory-affairs/' },
+          ],
+          implication:"Freyr should strengthen its DAXXIFY-specific regulatory track record and deepen its biologics/toxin expertise to protect this account from ProPharma's growing regional and specialty capability.",
+        },
+        {
+          name:'Clinical Trials Excellence Award 2024',
+          source:'ProPharma Group press releases 2024',
+          evidence:'ProPharma won the Clinical Trials Excellence Award 2024 and the Silver ECCCSA award for AI Innovation in Medical Information (January 2025) — signalling momentum in the same capability areas where Freyr competes.',
+          reference:'ProPharma About Page & Awards',
+          references:[
+            { label:'ProPharma AI Award & About', url:'https://www.propharmagroup.com/about/' },
+          ],
+          implication:"Freyr should counter with Freya Fusion's regulatory-native AI credentials and DAXXIFY-specific neurotoxin lifecycle knowledge — areas where ProPharma's general AI award does not translate to DAXXIFY-specific expertise.",
+        },
+        {
+          name:'Biologics & Botulinum Toxin Expertise',
+          source:'ProPharma regulatory sciences services portfolio',
+          evidence:"ProPharma's pre/post-approval FDA & EMA consulting, PV, and labeling strategy services map directly onto DAXXIFY's regulatory lifecycle needs. ProPharma's focus on biologics and specialty drugs like DAXXIFY's botulinum toxin platform makes it a credible and well-funded competitor backed by Odyssey Investment Partners.",
+          reference:'ProPharma Regulatory Sciences Services',
+          references:[
+            { label:'ProPharma Regulatory Affairs Services', url:'https://www.propharmagroup.com/regulatory-affairs/' },
+          ],
+          implication:"Freyr must position itself as the dedicated neurotoxin specialist — with exclusive focus on DAXXIFY's full lifecycle (cervical dystonia PV, EU/EMA gap, China expansion) — rather than ceding this expertise to broader CROs.",
+        },
+        {
+          name:'Aesthetic Neurotoxin Market Growth Attracting Competitors',
+          source:'Fortune Business Insights Aesthetic Neurotoxin Market Report 2026; PharmExec',
+          evidence:"The global aesthetic neurotoxin market is projected to grow from $5.98 billion in 2026 to $10.7 billion by 2034 (CAGR 7.54%). AbbVie submitted a BLA for TrenibotulinumtoxinE (TrenibotE) in April 2025 (FDA issued a CRL in April 2026 citing manufacturing concerns). This expanding pipeline creates heightened regulatory complexity, and firms including IQVIA, Parexel, and ProPharma are actively pitching for work tied to new neurotoxin entrants.",
+          reference:'Fortune Business Insights Aesthetic Neurotoxin Market 2026; AbbVie TrenibotE BLA',
+          references:[
+            { label:'Fortune Business Insights — Aesthetic Neurotoxin Market 2026', url:'https://www.fortunebusinessinsights.com/aesthetic-neurotoxin-market-113750' },
+            { label:'AbbVie TrenibotE BLA Submission (April 2025)', url:'https://news.abbvie.com/2025-04-24-AbbVie-Submits-Biologics-License-Application-to-U-S-FDA-for-TrenibotulinumtoxinE-TrenibotE-for-the-Treatment-of-Glabellar-Lines' },
+            { label:'FDA CRL for TrenibotE — PharmaPhor', url:'https://pharmaphorum.com/news/fda-declines-approve-abbvies-botox-follow' },
+          ],
+          implication:"Revance needs a regulatory partner with dedicated, exclusive neurotoxin expertise. Freyr should position itself as the specialist partner for DAXXIFY's full lifecycle rather than ceding neurotoxin knowledge to broader CROs who also serve AbbVie or Evolus.",
+        },
       ]
     },
   ] : [
     {
-      num:1, title:'Leadership Transition & Board Refresh', body:'Takeda will transition from Christophe Weber to Julie Kim in June 2026. Board refresh and executive restructuring create vendor decision resets and new buying center opportunities.',
+      num:1,
+      title:"IQVIA Large Pharma PV & Regulatory Account Acquisition Strategy",
+      body:"IQVIA — with 88,000+ employees across 100+ countries and $15.4B+ in 2024 revenues — is the world's largest healthcare data and services company and a co-Leader with Freyr in the 2024 Everest Group PEAK Matrix®. Its integrated model combines PV, regulatory submissions, medical information, and AI-powered compliance into a single platform, with proven relationships across top-20 global pharma including Takeda's profile.",
       signals:[
-        { name:'CEO Succession', source:'Takeda board-approved succession strategy and public announcements', evidence:'Julie Kim will succeed Christophe Weber as CEO in June 2026. Multi-year succession planning process already underway.', reference:'European Pharmaceutical Review / Stock Titan SEC Filings', implication:'Opportunity to engage executive stakeholders around transformation governance, launch readiness support, and strategic advisory programs.' },
-        { name:'Board Refresh', source:'Board restructuring announcements and governance filings', evidence:'Takeda plans significant Board changes with multiple outgoing directors and new healthcare leaders joining.', reference:'Stock Titan SEC Filings / Governance Committee Reports', implication:'Potential need for accelerated reporting, governance modernization, and strategic intelligence programs.' },
-        { name:'Organizational Restructuring', source:'FY2026 leadership and operating model redesign', evidence:'Takeda announced new organizational structures including creation of new business and strategy groups to improve speed and competitiveness.', reference:'Takeda FY2026 Structure Announcement', implication:'New stakeholder mapping and change-management opportunities across all buying centers.' },
-        { name:'Leadership Continuity', source:'Transition governance frameworks', evidence:'Board-level continuity planning includes vendor relationship reviews and strategic program assessments during CEO transition window.', reference:'Transformation Office Communications', implication:"Engage now before Kim's 100-day review concludes — get Freyr named in new CEO's strategic partner list." },
+        {
+          name:'$15.4B Enterprise Scale vs Freyr',
+          source:'IQVIA Pharma Deals Review 2024; Everest Group PEAK Matrix® 2024',
+          evidence:"IQVIA — 88,000+ employees, 100+ countries, $15.4B+ 2024 revenues — is the world's largest healthcare data and services company. Its 2024 Pharma Deals Review and 2025 Trends Report signal active engagement with large multi-product portfolios — precisely Takeda's profile (20+ therapeutic products across 100+ markets, ongoing submissions including HYQVIA for CIDP approved in both US and EU in January 2024).",
+          reference:'IQVIA Pharma Deals Review 2024; IQVIA 2025 Safety & Regulatory Compliance Trends',
+          references:[
+            { label:'IQVIA Pharma Deals Review 2024', url:'https://www.iqvia.com/library/articles/iqvia-pharma-deals-review-2024' },
+            { label:'IQVIA 2025 Safety & Regulatory Compliance Trends', url:'https://www.iqvia.com/library/white-papers/2025-safety-and-regulatory-compliance-trends-and-predictions-for-pharma-and-biotech' },
+            { label:'IQVIA Safety & Regulatory Compliance Platform', url:'https://www.iqvia.com/solutions/safety-regulatory-compliance' },
+          ],
+          implication:"Freyr must actively differentiate on specialised regulatory depth, technology transparency, and cost efficiency (30%+ savings track record) vs. IQVIA's scale but higher cost and lower personalisation. Freyr should proactively map its capabilities to Takeda's current active regulatory programmes (HYQVIA label expansions, plasma therapy new market entries).",
+        },
+        {
+          name:'NVIDIA AI Partnership — Agentic Workflows',
+          source:'IQVIA-NVIDIA Strategic Collaboration, January 2025',
+          evidence:"IQVIA's January 2025 strategic collaboration with NVIDIA to develop custom foundation models and agentic AI workflows for life sciences directly challenges Freyr's Freya Fusion positioning in the Takeda AI-enabled regulatory space, particularly relevant to Robertson's GenAI dossier programme and Ricci's enterprise AI strategy.",
+          reference:'IQVIA AI Trends in Pharma Blog 2025',
+          references:[
+            { label:'IQVIA AI Trends in Pharma — Drug Safety & Regulatory Compliance 2025', url:'https://www.iqvia.com/blogs/2025/01/ai-trends-in-pharma-enhancing-drug-safety-and-regulatory-compliance-for-2025' },
+          ],
+          implication:"Freyr should emphasise Freya Fusion's regulatory-native AI architecture — built on 15+ years of regulatory delivery data — vs. IQVIA's general-purpose foundation models. Map Freya Fusion to Robertson's published 5-pillar responsible AI framework.",
+        },
+        {
+          name:'Everest PEAK Matrix Co-Leader',
+          source:'Everest Group Life Sciences Regulatory and Medical Affairs Operations PEAK Matrix® 2024',
+          evidence:'IQVIA and Freyr are both named Leaders in the 2024 Everest Group PEAK Matrix® Assessment. For Takeda procurement evaluators, this positioning means IQVIA is considered an equivalent-tier alternative to Freyr in any regulatory outsourcing vendor review.',
+          reference:'Everest Group PEAK Matrix® Assessment 2024',
+          references:[
+            { label:'Everest Group PEAK Matrix® Assessment 2024', url:'https://www.iqvia.com/-/media/iqvia/pdfs/library/insight-brief/everest_group-life_sciences_regulatory_and_medical_affairs_operations_peak_matrix_assessment_2.pdf' },
+          ],
+          implication:"Freyr must lead with Takeda-specific programme knowledge — SUBMIT PRO for eCTD v4.0, freya.intelligence for H2 2026 launch monitoring — rather than relying on PEAK Matrix recognition.",
+        },
+        {
+          name:'Enterprise PV & Multi-Product Bundling',
+          source:'IQVIA Integrated PV, Regulatory, and Medical Information Platform',
+          evidence:"IQVIA's integrated model combines PV, regulatory submissions, medical information, and AI-powered compliance into a single platform — a natural enterprise pitch for Takeda's 20+ product, 100+ market portfolio. Enterprise bundling discounts and single-vendor governance align with Takeda's JPY 200B cost reduction mandate.",
+          reference:'IQVIA Safety & Regulatory Compliance Platform',
+          references:[
+            { label:'IQVIA Safety & Regulatory Compliance Platform', url:'https://www.iqvia.com/solutions/safety-regulatory-compliance' },
+          ],
+          implication:"Freyr must present a multi-programme engagement model to Robertson and Duprey — SUBMIT PRO + freya.intelligence + VIA + Freya Fusion — as a coherent, cost-measurable bundle rather than discrete service engagements.",
+        },
       ]
     },
     {
-      num:2, title:'Pipeline Launch Pressure', body:'Takeda is preparing for major launches including oveporexton, rusfertide, and zasocitinib. Commercial execution speed and launch readiness are critical for future growth amid transformation.',
+      num:2,
+      title:"Parexel's Rare Disease & Orphan Drug Regulatory Expertise",
+      body:"Parexel's 1,300+ regulatory specialist team — including 100 former regulators and HTA assessors — has deep expertise in rare disease and orphan drug regulatory pathways, the fastest-growing segment of healthcare regulatory outsourcing (10.19% CAGR through 2031). Takeda's core portfolio includes immunoglobulin therapies for rare conditions (HYQVIA, CUVITRU, GAMMAGARD) and oncology pipeline products.",
       signals:[
-        { name:'Launch Readiness', source:'Corporate transformation strategy and leadership communications', evidence:'Transformation savings are being redirected toward upcoming launches. Leadership communications repeatedly emphasize launch execution.', reference:'Takeda Transformation Announcement 2026', implication:'Opportunity for regulatory intelligence, launch content management, and market readiness programs.' },
-        { name:'Commercial Acceleration', source:'Executive transformation communications', evidence:'Organizational redesign focused on faster decision making and streamlined operations to improve execution speed.', reference:'Takeda FY2026 Organizational Structure Release', implication:'Need for scalable medical information and omnichannel content operations.' },
-        { name:'Competitive Positioning', source:'Pipeline asset analysis and market assessments', evidence:'Three simultaneous high-value launches during a 4,500-person restructuring creates outsourcing mandate.', reference:'Takeda Pipeline Overview Documents', implication:'This is the most urgent near-term entry. Robertson QBR in Q3 2026 — confirm resource allocation NOW.' },
-        { name:'Revenue Diversification', source:'Investor relations and earnings guidance', evidence:'Patent cliff on Vyvanse creates revenue replacement pressure. Pipeline diversification across rare disease, oncology, and neuroscience.', reference:'Takeda Investor Relations / Earnings Calls', implication:'Revenue pressure accelerates urgency for all three H2 2026 launch support streams.' },
+        {
+          name:'Rare Disease Regulatory Depth',
+          source:'Mordor Intelligence Healthcare Regulatory Outsourcing Market 2026; Parexel Regulatory & Access Consulting',
+          evidence:"Parexel's 1,300+ regulatory specialist team includes 100+ former regulators and HTA assessors with deep expertise in rare disease and orphan drug regulatory pathways — the fastest-growing segment of healthcare regulatory outsourcing (10.19% CAGR through 2031 per Mordor Intelligence). Takeda's core portfolio includes HYQVIA for CIDP, CUVITRU, GAMMAGARD, and next-gen products TAK-881 and TAK-411.",
+          reference:'Mordor Intelligence Healthcare Regulatory Outsourcing Market 2026; Parexel Regulatory & Access',
+          references:[
+            { label:'Mordor Intelligence Healthcare Regulatory Outsourcing Market 2026', url:'https://www.mordorintelligence.com/industry-reports/healthcare-regulatory-outsourcing-affairs-market' },
+            { label:'Parexel Regulatory & Access Consulting', url:'https://www.parexel.com/solutions/approval-and-access' },
+          ],
+          implication:"Freyr should build out or showcase its rare disease regulatory track record and proactively brief Takeda's regulatory teams on EU Health Technology Assessment Regulation (HTAR) implications — before Parexel claims that advisory relationship.",
+        },
+        {
+          name:'HYQVIA EU Expansion Threat',
+          source:'Parexel EU regulatory expertise and published HTAR guidance',
+          evidence:"Parexel's 2025 guidance on EU regulatory changes (HTAR implementation) makes it a credible threat for Takeda's European filing strategy — particularly HYQVIA global expansion and plasma therapy new market entries across the EU, where HTA reimbursement alignment is now a regulatory requirement.",
+          reference:'Parexel EU Regulations 2025 Guidance',
+          references:[
+            { label:'Parexel — Navigating FDA Changes & EU Regulations 2025', url:'https://www.parexel.com/solutions/early-development-and-innovation/regulatory-strategy/navigating-fda-changes-eight-actions-for-sponsors' },
+          ],
+          implication:"Freyr should develop a specific HTAR briefing for Takeda's EU regulatory and market access teams — positioning Freyr as the HTAR specialist before Parexel occupies this advisory relationship.",
+        },
+        {
+          name:'TAK-881 & TAK-411 Pipeline Risk',
+          source:'Takeda next-generation immunoglobulin pipeline; Parexel rare disease outsourcing',
+          evidence:"Parexel's top-ranked position in rare disease regulatory submissions (Mordor Intelligence 2026) makes it a credible pitch for Takeda's next-gen immunoglobulin products (TAK-881 subcutaneous IgG, TAK-411 for CIPA) — both requiring complex rare disease regulatory pathways across multiple geographies.",
+          reference:'Parexel Regulatory & Access; Mordor Intelligence 2026',
+          references:[
+            { label:'Parexel Regulatory & Access Consulting', url:'https://www.parexel.com/solutions/approval-and-access' },
+            { label:'Mordor Intelligence Healthcare Regulatory Outsourcing Market 2026', url:'https://www.mordorintelligence.com/industry-reports/healthcare-regulatory-outsourcing-affairs-market' },
+          ],
+          implication:"Freyr should map its rare disease regulatory capabilities to TAK-881 and TAK-411 specifically — demonstrating Freyr's ability to manage complex orphan drug pathways across FDA, EMA, and PMDA simultaneously.",
+        },
+        {
+          name:'Scrip Award — Best CRO Full-Service 2025',
+          source:'Scrip Awards 2025',
+          evidence:'Parexel won the Scrip Award for "Best Contract Research Organization, Full-Service Provider" in 2025. Combined with its 40+ year regulatory heritage and 100+ former regulators, this award strengthens Parexel\'s credibility pitch to Takeda\'s procurement and regulatory leadership.',
+          reference:'Parexel Company & Award Recognition',
+          references:[
+            { label:'Parexel Company & Award Recognition', url:'https://www.parexel.com/company/our-experts' },
+          ],
+          implication:"Freyr should counter with technology differentiation (Freya Fusion multi-LLM architecture, freya.intelligence regulatory monitoring) and Takeda-specific programme knowledge rather than competing on company heritage.",
+        },
       ]
     },
     {
-      num:3, title:'SAP S/4HANA Enterprise Transformation', body:'Takeda is executing a multi-year SAP transformation program and migrating enterprise systems to S/4HANA and cloud ERP architecture. Data migration and governance are key priorities.',
+      num:3,
+      title:"Cencora Data Breach — Takeda Patient Data Compromised",
+      body:"In February 2024, Cencora suffered a major cyberattack that resulted in confirmed patient data exfiltration — and Takeda Pharmaceuticals U.S.A., Inc. was named as one of the affected clients whose patient data was compromised. Cencora and The Lash Group subsequently agreed to pay $40 million to settle class action litigation (1.43M+ individuals affected). This creates a direct, evidenced competitive angle for Freyr.",
       signals:[
-        { name:'SAP S/4HANA Migration', source:'Enterprise transformation job postings and program descriptions', evidence:'Takeda identified SAP migration as a foundational transformation initiative. Dedicated leadership roles created for migration governance.', reference:'Takeda Jobs / SAP Case Study 2025', implication:'Opportunity for validation, regulatory compliance support, data governance, and migration quality assurance.' },
-        { name:'Data Transformation', source:'Data migration governance framework documents', evidence:'Dedicated leadership roles created for enterprise data migration and process harmonization across global operations.', reference:'Takeda Enterprise Platform Transformation Program', implication:'Regulatory data migration quality assurance and GxP compliance validation create direct Freyr entry points.' },
-        { name:'Process Harmonization', source:'SAP transformation case study documentation', evidence:'Takeda is standardizing global processes ahead of ERP modernization. Global process ownership and operational standardization initiatives active.', reference:'SAP Case Study / Takeda Transformation Roadmap', implication:'Potential consulting opportunities around regulated content and quality processes.' },
-        { name:'AI Enablement', source:'SAP cloud ERP modernization initiative', evidence:'Takeda is actively exploring embedded AI capabilities in future ERP architecture. AI identified as a strategic transformation enabler.', reference:'SAP/Takeda Cloud ERP Modernization Reports', implication:'Strong opportunity for GenAI-enabled medical content and regulatory automation aligned to transformation program.' },
+        {
+          name:'Cencora Breach — Takeda Data Compromised',
+          source:'HIPAA Journal; Cencora SEC Filing 2024',
+          evidence:"In February 2024, Cencora (AmerisourceBergen) suffered a major cyberattack resulting in confirmed patient data exfiltration. Takeda Pharmaceuticals U.S.A., Inc. was named as one of the affected clients whose patient data was compromised through Cencora's patient support programs. Cencora and The Lash Group subsequently agreed to pay $40 million to settle class action litigation (1.43M+ individuals affected).",
+          reference:'HIPAA Journal Cencora Data Breach; Cencora $40M Settlement; Cencora SEC Filing',
+          references:[
+            { label:'HIPAA Journal — Cencora Data Breach & Takeda Involvement', url:'https://www.hipaajournal.com/cencora-cyberattack-data-breach/' },
+            { label:'Cencora Investor Relations — SEC Filing Disclosure', url:'https://investor.cencora.com' },
+          ],
+          implication:"Freyr has a direct, evidenced competitive angle against Cencora/PharmaLex in the context of Takeda: Cencora's 2024 breach compromised Takeda patient data. Freyr should proactively present its data security architecture, ISO certifications, and regulatory data governance protocols — positioning Freyr as the lower-risk, specialised partner.",
+        },
+        {
+          name:'$40M Class Action Settlement',
+          source:'Cencora class action litigation settlement 2024',
+          evidence:"Cencora and The Lash Group agreed to pay $40 million to settle class action litigation filed by 1.43M+ individuals whose data was compromised in the February 2024 breach — a significant financial and reputational penalty that weakens Cencora/PharmaLex as a vendor in Takeda's risk governance framework.",
+          reference:'HIPAA Journal Cencora $40M Settlement',
+          references:[
+            { label:'HIPAA Journal — Cencora $40M Settlement', url:'https://www.hipaajournal.com/cencora-cyberattack-data-breach/' },
+          ],
+          implication:"In Takeda vendor security reviews, Freyr should reference this settlement explicitly — framing Freyr's GxP-compliant data architecture and ISO certifications as the evidenced alternative to Cencora's documented data security failure.",
+        },
+        {
+          name:'Third-Party Data Security Risk Exposure',
+          source:'Cencora SEC Filing 2024; HIPAA Journal',
+          evidence:"The Cencora breach highlights the third-party data security risks when pharmaceutical companies use large, bundled service providers for PV and regulatory data management. Takeda's Transformation Office under Ricci (CDTO) has explicitly created a Digital Trust Officer role — signalling that data security governance is an active C-suite priority.",
+          reference:'Cencora SEC Filing 2024',
+          references:[
+            { label:'Cencora Investor Relations — SEC Filing', url:'https://investor.cencora.com' },
+          ],
+          implication:"Freyr should brief Ricci's Digital Trust Officer on Freyr's data security architecture — framing Freyr's specialised, pure-play regulatory model as structurally lower risk than generalist bundled providers like Cencora.",
+        },
+        {
+          name:'PharmaLex Regulatory Bundle Weakened',
+          source:'Cencora acquisition of PharmaLex (2023); post-breach reputation impact',
+          evidence:"Cencora's acquisition of PharmaLex in January 2023 created a regulatory-plus-distribution bundle that competes with Freyr. However, the February 2024 data breach — which compromised Takeda patient data specifically — has weakened PharmaLex's standing in Takeda's vendor risk assessment, creating a direct displacement opportunity.",
+          reference:'Cencora PharmaLex Acquisition; HIPAA Journal',
+          references:[
+            { label:'Cencora Acquisition of PharmaLex (January 2023)', url:'https://investor.cencora.com/news/news-details/2023/AmerisourceBergen-Completes-Acquisition-of-PharmaLex/default.aspx' },
+            { label:'HIPAA Journal — Cencora Data Breach', url:'https://www.hipaajournal.com/cencora-cyberattack-data-breach/' },
+          ],
+          implication:"Freyr should target PharmaLex's existing Takeda regulatory services scope as a displacement opportunity — presenting Freyr's pure-play regulatory model, GxP data security, and Takeda-specific programme knowledge as the replacement.",
+        },
       ]
     },
     {
-      num:4, title:'Medical Content & Vendor Excellence', body:'Takeda is focused on operational efficiency, content scalability, and reducing cycle times through automation and centralized operating models. Vendor rationalization creates strategic partnership opportunities.',
+      num:4,
+      title:"ProPharma's Global Expansion Competing for Takeda's Regulatory Needs",
+      body:"ProPharma's December 2025 opening of a Hyderabad office — its first major India presence — signals a direct challenge to Freyr's delivery model and cost base. With Takeda operating across 120+ countries and managing 20+ commercial products, ProPharma explicitly targets multi-product, multi-market pharma sponsors for lifecycle regulatory management and labeling strategy.",
       signals:[
-        { name:'Content Automation', source:'Corporate transformation roadmap', evidence:'Advanced technologies identified as a transformation pillar. Transformation programs emphasize technology-driven simplification.', reference:'Takeda Transformation Roadmap 2026', implication:'Opportunity for AI-driven medical writing and review acceleration.' },
-        { name:'Medical Review Optimization', source:'Medical affairs operational efficiency initiatives', evidence:'JPY 200B+ savings target by FY2028 requires significant operational transformation across all functions including medical content.', reference:'Takeda Transformation Savings Target Announcement', implication:'GenAI-powered medical content automation with medical affairs reducing cycle times and compliance risk.' },
-        { name:'Vendor Consolidation', source:'Transformation announcements and JPY 200B savings program', evidence:'Vendor rationalization creates opportunity for strategic partnerships. Procurement centralization via SAP Ariba under Accenture scope.', reference:'Takeda Transformation Announcements / Procurement Documents', implication:'Vendor rationalization creates opportunity for strategic partnerships and managed services — expand before roster locks.' },
-        { name:'Cost Transformation', source:'FY2028 cost reduction program', evidence:'JPY 200B+ savings target creates urgency for vendor efficiency programs and automation-first operating models.', reference:'Takeda FY2028 Cost Transformation Program', implication:'Position Freyr as cost transformation partner: automation-first, measurable FTE reduction, auditable savings.' },
+        {
+          name:'Hyderabad Launch — India Cost Arbitrage Threat',
+          source:'ProPharma Group press releases; CBInsights',
+          evidence:"ProPharma's December 2025 opening of a Hyderabad office — its first major India presence — signals a direct challenge to Freyr's delivery model and cost base. For Takeda operating across 120+ countries, ProPharma's India delivery at comparable cost to Freyr eliminates a significant portion of Freyr's cost arbitrage advantage.",
+          reference:'ProPharma Hyderabad Expansion (Dec 2025)',
+          references:[
+            { label:'ProPharma Group — CBInsights Company Profile', url:'https://www.cbinsights.com/company/propharma-group' },
+            { label:'ProPharma Services Overview', url:'https://www.propharmagroup.com/services/' },
+          ],
+          implication:"Freyr needs to compete on value beyond cost — demonstrating deeper regulatory intelligence (via Freya AI platform), superior turnaround on multi-market submissions, and institutional knowledge of Takeda's portfolio.",
+        },
+        {
+          name:'Multi-Market Lifecycle Regulatory Targeting',
+          source:'ProPharma services portfolio; ZoomInfo',
+          evidence:"ProPharma explicitly targets multi-product, multi-market pharma sponsors for lifecycle regulatory management and labeling strategy — both high-priority for Takeda with 20+ products across 120+ countries. ProPharma self-describes as 'the world's largest Research Consulting Organization (RCO).'",
+          reference:'ProPharma Services Overview',
+          references:[
+            { label:'ProPharma Services Overview', url:'https://www.propharmagroup.com/services/' },
+          ],
+          implication:"Freyr must deepen account penetration — becoming embedded across Takeda's regulatory value chain (submissions, labeling, PV, IDMP, RIM) rather than performing discrete tasks, making displacement difficult.",
+        },
+        {
+          name:'ECCCSA Silver Award — AI Medical Information',
+          source:'ProPharma ECCCSA Silver Award, January 2025',
+          evidence:'ProPharma won the Silver ECCCSA award for AI Innovation in Medical Information in January 2025 — directly competing with Freyr in the AI-enabled regulatory and medical information space, particularly relevant to Robertson\'s GenAI dossier programme and Ricci\'s enterprise AI strategy at Takeda.',
+          reference:'ProPharma AI Award & About',
+          references:[
+            { label:'ProPharma AI Award & About', url:'https://www.propharmagroup.com/about/' },
+          ],
+          implication:"Freyr should counter with Freya Fusion's regulatory-native AI architecture and Robertson's own published vision for cloud-based federated regulatory submission platforms — positioning Freyr as the technical implementation partner for Robertson's stated strategy.",
+        },
+        {
+          name:'Regulatory Outsourcing Market Boom ($9.2B → $25.4B)',
+          source:'HTF Market Intelligence Regulatory Affairs Outsourcing Market Study 2025-2032; DataM Intelligence 2026',
+          evidence:"The global regulatory affairs outsourcing market is projected to grow from $9.2 billion in 2025 to $25.4 billion by 2032 (CAGR 13.1%). This high-growth environment is attracting Syneos Health, Genpact, Accenture, Deloitte, WuXi AppTec, and others — all expanding into regulatory outsourcing for top-10 pharma like Takeda.",
+          reference:'HTF Market Intelligence RA Outsourcing 2025-2032; DataM Intelligence 2026',
+          references:[
+            { label:'HTF Market Intelligence — RA Outsourcing Market 2025-2032', url:'https://www.newstrail.com/regulatory-affairs-outsourcing-market-is-going-to-boom-iqvia-parexel-icon-covance-ppd-wuxi-apptec/' },
+            { label:'DataM Intelligence — Regulatory Affairs & Compliance Market 2026', url:'https://www.openpr.com/news/4425908/regulatory-affairs-compliance-market-growth-to-us-39-2' },
+            { label:'Mordor Intelligence Healthcare Regulatory Outsourcing 2026', url:'https://www.mordorintelligence.com/industry-reports/healthcare-regulatory-outsourcing-affairs-market' },
+          ],
+          implication:"Freyr's defence strategy should be deepening account penetration — becoming embedded across Takeda's regulatory value chain (submissions, labeling, PV, IDMP, RIM) rather than performing discrete tasks — making displacement difficult and costly even as alternatives proliferate.",
+        },
       ]
     },
   ]
@@ -778,15 +1114,14 @@ function CompetitiveIntel({ accountId }: { accountId:string }) {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
         {cards.map(card=>(
           <div key={card.num} style={{ background:'#1B365D', borderRadius:12, padding:'22px 18px 20px', position:'relative', color:'white', boxShadow:'0 8px 24px rgba(27,54,93,0.22)' }}>
-            {/* Ribbon bookmark */}
             <div style={{ position:'absolute', top:-8, left:18, width:44, height:52, background:'#D4AF37', color:'#1B365D', fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, clipPath:'polygon(0 0,100% 0,100% 78%,50% 100%,0 78%)' }}>{card.num}</div>
-            <h3 style={{ marginTop:28, marginBottom:10, fontFamily:'Playfair Display,serif', fontSize:17, fontWeight:700, color:'#fff', lineHeight:1.25 }}>{card.title}</h3>
-            <p style={{ color:'rgba(228,234,242,0.88)', lineHeight:1.6, fontSize:14, margin:0 }}>{card.body}</p>
+            <h3 style={{ marginTop:28, marginBottom:10, fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, color:'#fff', lineHeight:1.3 }}>{card.title}</h3>
+            <p style={{ color:'rgba(228,234,242,0.88)', lineHeight:1.65, fontSize:13.5, margin:0 }}>{card.body}</p>
             <div style={{ height:1, background:'rgba(255,255,255,0.14)', margin:'16px 0 13px' }}/>
             <div style={{ fontSize:11, letterSpacing:'0.1em', fontWeight:700, marginBottom:10, color:'#DCE6F3', textTransform:'uppercase' }}>SIGNALS TRIANGULATED</div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:7 }}>
               {card.signals.map(sig=>(
-                <button key={sig.name} onClick={()=>setActiveModal(sig)} style={{ border:'1px solid #D4AF37', color:'#FFD86A', padding:'7px 11px', borderRadius:6, cursor:'pointer', fontSize:13, fontWeight:600, background:'transparent', transition:'all 0.18s', fontFamily:'Source Sans Pro,sans-serif' }}
+                <button key={sig.name} onClick={()=>setActiveModal(sig as any)} style={{ border:'1px solid #D4AF37', color:'#FFD86A', padding:'7px 11px', borderRadius:6, cursor:'pointer', fontSize:12.5, fontWeight:600, background:'transparent', transition:'all 0.18s', fontFamily:'Source Sans Pro,sans-serif' }}
                   onMouseEnter={e=>{ e.currentTarget.style.background='#D4AF37'; e.currentTarget.style.color='#1B365D'; e.currentTarget.style.transform='translateY(-1px)' }}
                   onMouseLeave={e=>{ e.currentTarget.style.background='transparent'; e.currentTarget.style.color='#FFD86A'; e.currentTarget.style.transform='none' }}>
                   {sig.name}
@@ -803,7 +1138,7 @@ function CompetitiveIntel({ accountId }: { accountId:string }) {
 // ─── NUDGE INTELLIGENCE TABS ─────────────────────────────────────────────────
 function NudgeIntel({ accountId, accountName }: { accountId:string; accountName:string }) {
   const [tab, setTab] = useState<'companyProfile'|'keySignals'|'competitiveIntelligence'|'salesIntelligence'>('companyProfile')
-  const [activeSignalModal, setActiveSignalModal] = useState<{ name:string; source:string; evidence:string; reference:string; implication:string }|null>(null)
+  const [activeSignalModal, setActiveSignalModal] = useState<{ name:string; source:string; evidence:string; reference:string; references?:{label:string;url:string}[]; implication:string }|null>(null)
   const data = NUDGE_PROFILE[accountId]
   if (!data) return null
   const tabs: [typeof tab,string][] = [
